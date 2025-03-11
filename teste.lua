@@ -62,4 +62,7 @@ local function showCloningFrame()
 end
 
 -- Conectar a função ao clique do botão Return
-returnButton.MouseButton1Click:Connect(hideCloningFrame)
+-- Exemplo de como restaurar manualmente
+returnButton.MouseButton1Click:Connect(function()
+    cloningFrame.Visible = true
+end)
