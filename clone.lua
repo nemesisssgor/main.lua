@@ -9,7 +9,7 @@ local cloningFrame = playerGui:WaitForChild("CloningSystem"):WaitForChild("Cloni
 local craftFrame = cloningFrame:WaitForChild("CraftFrame")
 local craftButton = craftFrame:WaitForChild("Craft")
 
-local gameId = game.placeId
+
 
 -- Variável para controlar a visibilidade
 local isCloningFrameVisible = true
