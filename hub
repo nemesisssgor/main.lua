@@ -1761,17 +1761,17 @@ local function startEggFunction(selection)
         
         	-- Quando a animação de saída for concluída, ocultar o Frame
         	exitTween.Completed:Connect(function()
-            	local coreGui = game:GetService("CoreGui")
-            	local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
+            		local coreGui = game:GetService("CoreGui")
+            		local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
             
-            	if infinityHubScreenGui then
-                	-- Encontrar o Frame dentro de "InfinityHub"
-                	local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
-                	if infinityHubFrame then
-                    		-- Tornar o Frame invisível
-                    		infinityHubFrame.Visible = false
-                	end
-            	end
+            		if infinityHubScreenGui then
+                		-- Encontrar o Frame dentro de "InfinityHub"
+                		local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
+                		if infinityHubFrame then
+                    			-- Tornar o Frame invisível
+                    			infinityHubFrame.Visible = false
+                		end
+            		end
 		end)
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/clone.lua", true))() 
         elseif selection == "OPEN BOX" then
