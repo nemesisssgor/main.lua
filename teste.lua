@@ -44,16 +44,10 @@ uiGradient.Color = ColorSequence.new{
 uiGradient.Rotation = 90
 uiGradient.Parent = returnButton
 
--- Função para desativar todas as GUIs e parar tudo
-local function disableAllGUIs()
-    for _, gui in pairs(playerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") then
-            gui.Enabled = false
-        end
-    end
-    -- Opcional: Parar o jogo ou scripts relacionados
-    script.Disabled = true
+-- Função para esconder o frame Cloning ao clicar no botão Return
+local function hideCloningFrame()
+    cloningFrame.Visible = false
 end
 
 -- Conectar a função ao clique do botão
-returnButton.MouseButton1Click:Connect(disableAllGUIs)
+returnButton.MouseButton1Click:Connect(hideCloningFrame)
