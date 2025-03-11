@@ -63,9 +63,3 @@ end
 
 -- Conectar a função ao clique do botão Return
 returnButton.MouseButton1Click:Connect(hideCloningFrame)
-
--- Adicionando uma função que faz o CloningFrame se tornar visível novamente
--- Isto pode ser chamado de algum evento ou condição para restaurar a visibilidade
-game:GetService("ReplicatedStorage").SomeEvent.OnClientEvent:Connect(function()
-    showCloningFrame()
-end)
