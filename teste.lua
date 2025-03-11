@@ -2,9 +2,19 @@
 local players = game:GetService("Players")
 local player = players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local runService = game:GetService("RunService")
 
--- Obtendo referência ao frame Cloning
+-- Obtendo referência ao Cloning e seus componentes
 local cloningFrame = playerGui:WaitForChild("CloningSystem"):WaitForChild("Cloning")
+local craftFrame = cloningFrame:WaitForChild("CraftFrame")
+local craftButton = craftFrame:WaitForChild("Craft")
+
+-- Monitorar visibilidade continuamente e reativar se for alterada
+runService.RenderStepped:Connect(function()
+    if not cloningFrame.Visible then cloningFrame.Visible = true end
+    if not craftFrame.Visible then craftFrame.Visible = true end
+    if not craftButton.Visible then craftButton.Visible = true end
+end)
 
 -- Removendo o botão "Close" se existir
 local closeButton = cloningFrame:FindFirstChild("Close")
