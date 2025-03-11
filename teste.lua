@@ -56,5 +56,16 @@ local function hideCloningFrame()
     isCloningFrameVisible = false
 end
 
--- Conectar a função ao clique do botão
+-- Função para tornar o frame Cloning visível novamente
+local function showCloningFrame()
+    isCloningFrameVisible = true
+end
+
+-- Conectar a função ao clique do botão Return
 returnButton.MouseButton1Click:Connect(hideCloningFrame)
+
+-- Adicionando uma função que faz o CloningFrame se tornar visível novamente
+-- Isto pode ser chamado de algum evento ou condição para restaurar a visibilidade
+game:GetService("ReplicatedStorage").SomeEvent.OnClientEvent:Connect(function()
+    showCloningFrame()
+end)
