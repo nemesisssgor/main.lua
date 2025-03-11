@@ -1,0 +1,825 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+-- Configurações globais
+local DROPDOWN_ITEM_HEIGHT = 30
+local SCROLLBAR_OFFSET = 10
+local VISIBLE_OPTIONS = 2  -- Número de opções visíveis inicialmente no dropdown
+
+-- Variáveis de controle
+local debounceRunSkill = false
+local debounceStopSkill = false
+local debounceRunBoss = false
+local debounceStopBoss = false
+local debounceRunConfig = false
+local debounceStopConfig = false
+local debounceTeleport = false
+
+-- Criando a GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:FindFirstChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 220)
+frame.Position = UDim2.new(0.5, -140, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner", frame)
+uiCorner.CornerRadius = UDim.new(0, 10)
+
+-- Função para criar dropdowns com scroll limitado a 2 opções visíveis
+local function createDropdown(parent, options, optionLabels, default, defaultLabel, yPosition)
+    local dropdown = Instance.new("TextButton")
+    dropdown.Text = defaultLabel or default
+    dropdown.Size = UDim2.new(1, -20, 0, 30)
+    dropdown.Position = UDim2.new(0, 10, 0, yPosition)
+    dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    dropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdown.Parent = parent
+    
+    -- Guarda o valor real (não visível para o usuário)
+    dropdown.Name = default
+    
+    -- Criando um frame com limite de tamanho para conter o menu
+    -- Ajustando o tamanho para mostrar apenas VISIBLE_OPTIONS itens
+    local menuContainer = Instance.new("Frame")
+    menuContainer.Size = UDim2.new(1, -20, 0, VISIBLE_OPTIONS * DROPDOWN_ITEM_HEIGHT)
+    menuContainer.Position = UDim2.new(0, 10, 0, yPosition + 35)
+    menuContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    menuContainer.ClipsDescendants = true -- Importante: recorta conteúdo que sai dos limites
+    menuContainer.Visible = false
+    menuContainer.Parent = parent
+    
+    -- Frame do menu que será rolado
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, 0, 1, 0)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 8
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255) -- Cor da barra de rolagem
+    scroll.CanvasSize = UDim2.new(0, 0, 0, #options * DROPDOWN_ITEM_HEIGHT) -- Tamanho baseado no número de opções
+    scroll.Parent = menuContainer
+    
+    -- Se tivermos mais que VISIBLE_OPTIONS, ajustamos a barra de rolagem para mostrar que há mais conteúdo
+    if #options > VISIBLE_OPTIONS then
+        scroll.CanvasPosition = Vector2.new(0, 0)  -- Começa no topo
+    end
+
+    for i, option in ipairs(options) do
+        local btn = Instance.new("TextButton")
+        btn.Text = optionLabels and optionLabels[i] or option
+        btn.Size = UDim2.new(1, -SCROLLBAR_OFFSET, 0, DROPDOWN_ITEM_HEIGHT - 5)
+        btn.Position = UDim2.new(0, 5, 0, (i-1)*DROPDOWN_ITEM_HEIGHT)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Parent = scroll
+        
+        -- Guarda o valor real (não visível para o usuário)
+        btn.Name = option
+
+        btn.MouseButton1Click:Connect(function()
+            dropdown.Text = btn.Text
+            dropdown.Name = option  -- Armazena o valor real
+            menuContainer.Visible = false
+        end)
+    end
+
+    dropdown.MouseButton1Click:Connect(function()
+        menuContainer.Visible = not menuContainer.Visible
+        
+        -- Detecta cliques fora do menu para fechá-lo
+        if menuContainer.Visible then
+            local connection
+            connection = UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local position = input.Position
+                    local guiObjects = screenGui:GetGuiObjectsAtPosition(position.X, position.Y)
+                    
+                    local clickedOnMenu = false
+                    for _, obj in ipairs(guiObjects) do
+                        if obj:IsDescendantOf(menuContainer) or obj == dropdown then
+                            clickedOnMenu = true
+                            break
+                        end
+                    end
+                    
+                    if not clickedOnMenu then
+                        menuContainer.Visible = false
+                        connection:Disconnect()
+                    end
+                end
+            end)
+        end
+    end)
+
+    return dropdown, menuContainer
+end
+
+-- Página 1: Sistema de Skills
+local skillLabel = Instance.new("TextLabel")
+skillLabel.Text = "Infinity (Free): dc #submissogore:"
+skillLabel.Size = UDim2.new(1, -20, 0, 25)
+skillLabel.Position = UDim2.new(0, 10, 0, 10)
+skillLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+skillLabel.BackgroundTransparency = 1
+skillLabel.Parent = frame
+
+-- Definir as opções e seus rótulos para exibição
+local skillOptions = {"Skill1", "Skill2", "Skill3", "Skill4"}
+local skillLabels = {"Skill1(FREE)", "Skill2(FREE)", "Skill3(PRO)", "Skill4(PRO)"}
+local skillDropdown, skillMenu = createDropdown(frame, skillOptions, skillLabels, "Skill1", "Skill1(FREE)", 35)
+
+-- Botões Página 1
+local runButtonSkill = Instance.new("TextButton")
+runButtonSkill.Text = "RUN SKILL"
+runButtonSkill.Size = UDim2.new(0.45, 0, 0, 40)
+runButtonSkill.Position = UDim2.new(0.025, 0, 1, -50)
+runButtonSkill.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+runButtonSkill.TextColor3 = Color3.fromRGB(255, 255, 255)
+runButtonSkill.Parent = frame
+
+local stopButtonSkill = Instance.new("TextButton")
+stopButtonSkill.Text = "STOP SKILL"
+stopButtonSkill.Size = UDim2.new(0.45, 0, 0, 40)
+stopButtonSkill.Position = UDim2.new(0.525, 0, 1, -50)
+stopButtonSkill.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+stopButtonSkill.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopButtonSkill.Parent = frame
+
+-- Página 2: Sistema de Boss
+local farmBossLabel = Instance.new("TextLabel")
+farmBossLabel.Text = "AUTO FARM + BOSS(FREE):"
+farmBossLabel.Size = UDim2.new(1, -20, 0, 25)
+farmBossLabel.Position = UDim2.new(0, 10, 0, 10)
+farmBossLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+farmBossLabel.BackgroundTransparency = 1
+farmBossLabel.Visible = false
+farmBossLabel.Parent = frame
+
+local bossOptions = {"Silver Lake", "Gear Savannah", "Infinity Mountain", "Goblimon Dungeon", "ColiseumF", "ColiseumN"}
+local bossLabels = {"Silver Lake", "Gear Savannah(PRO)", "Infinity Mountain(PRO)", "Goblimon Dungeon(PRO)", "Coliseum-Easy(PRO)", "Coliseum-Normal(PRO)"}
+local farmBossDropdown, bossMenu = createDropdown(frame, bossOptions, bossLabels, "Silver Lake", "Silver Lake", 35)
+farmBossDropdown.Visible = false
+
+-- Botões Página 2
+local runButtonBoss = Instance.new("TextButton")
+runButtonBoss.Text = "RUN FARM"
+runButtonBoss.Size = UDim2.new(0.45, 0, 0, 40)
+runButtonBoss.Position = UDim2.new(0.025, 0, 1, -50)
+runButtonBoss.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+runButtonBoss.TextColor3 = Color3.fromRGB(255, 255, 255)
+runButtonBoss.Visible = false
+runButtonBoss.Parent = frame
+
+local stopButtonBoss = Instance.new("TextButton")
+stopButtonBoss.Text = "STOP FARM"
+stopButtonBoss.Size = UDim2.new(0.45, 0, 0, 40)
+stopButtonBoss.Position = UDim2.new(0.525, 0, 1, -50)
+stopButtonBoss.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+stopButtonBoss.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopButtonBoss.Visible = false
+stopButtonBoss.Parent = frame
+
+-- Página 3: Configurações
+local configLabel = Instance.new("TextLabel")
+configLabel.Text = "SECURITY:"
+configLabel.Size = UDim2.new(1, -20, 0, 25)
+configLabel.Position = UDim2.new(0, 10, 0, 10)
+configLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+configLabel.BackgroundTransparency = 1
+configLabel.Visible = false
+configLabel.Parent = frame
+
+
+-- Checkboxes
+local checkbox1 = Instance.new("TextButton")
+checkbox1.Size = UDim2.new(0, 25, 0, 25)
+checkbox1.Position = UDim2.new(0.2, 0, 0.3, 0)
+checkbox1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+checkbox1.Text = ""
+checkbox1.Parent = frame
+checkbox1.Visible = false
+
+local checkbox1Label = Instance.new("TextLabel")
+checkbox1Label.Text = "Anti-Moderator"
+checkbox1Label.Size = UDim2.new(0, 100, 0, 20)
+checkbox1Label.Position = UDim2.new(0.2, 30, 0.3, 0)
+checkbox1Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+checkbox1Label.BackgroundTransparency = 1
+checkbox1Label.Parent = frame
+checkbox1Label.Visible = false
+
+local checkbox2 = Instance.new("TextButton")
+checkbox2.Size = UDim2.new(0, 25, 0, 25)
+checkbox2.Position = UDim2.new(0.2, 0, 0.5, 0)
+checkbox2.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+checkbox2.Text = ""
+checkbox2.Parent = frame
+checkbox2.Visible = false
+
+local checkbox2Label = Instance.new("TextLabel")
+checkbox2Label.Text = "Low Players Server"
+checkbox2Label.Size = UDim2.new(0, 100, 0, 20)
+checkbox2Label.Position = UDim2.new(0.2, 30, 0.5, 0)
+checkbox2Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+checkbox2Label.BackgroundTransparency = 1
+checkbox2Label.Parent = frame
+checkbox2Label.Visible = false
+
+-- Botões Página 3
+local runButtonConfig = Instance.new("TextButton")
+runButtonConfig.Text = "RUN CONFIG"
+runButtonConfig.Size = UDim2.new(0.45, 0, 0, 40)
+runButtonConfig.Position = UDim2.new(0.025, 0, 1, -50)
+runButtonConfig.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+runButtonConfig.TextColor3 = Color3.fromRGB(255, 255, 255)
+runButtonConfig.Visible = false
+runButtonConfig.Parent = frame
+
+local stopButtonConfig = Instance.new("TextButton")
+stopButtonConfig.Text = "STOP CONFIG"
+stopButtonConfig.Size = UDim2.new(0.45, 0, 0, 40)
+stopButtonConfig.Position = UDim2.new(0.525, 0, 1, -50)
+stopButtonConfig.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+stopButtonConfig.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopButtonConfig.Visible = false
+stopButtonConfig.Parent = frame
+
+-- Página 4: Teleport (NOVA)
+local teleportLabel = Instance.new("TextLabel")
+teleportLabel.Text = "TELEPORT: (NO LEVEL)"
+teleportLabel.Size = UDim2.new(1, -20, 0, 25)
+teleportLabel.Position = UDim2.new(0, 10, 0, 10)
+teleportLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+teleportLabel.BackgroundTransparency = 1
+teleportLabel.Visible = false
+teleportLabel.Parent = frame
+
+-- Dropdown para locais de teleporte
+local teleportOptions = {"Gear Savannah(FREE)", "Infinity Mountain(FREE)"}
+local teleportValues = {"92975923292118", "138083468820287"} -- Valores reais por trás das opções
+local teleportDropdown, teleportMenu = createDropdown(frame, teleportValues, teleportOptions, "11", "Gear Savannah", 50)
+teleportDropdown.Visible = false
+teleportMenu.Visible = false
+
+-- Botão para teleportar
+local teleportButton = Instance.new("TextButton")
+teleportButton.Text = "TELEPORT"
+teleportButton.Size = UDim2.new(0.8, 0, 0, 40)
+teleportButton.Position = UDim2.new(0.1, 0, 0.65, 0)
+teleportButton.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+teleportButton.Visible = false
+teleportButton.Parent = frame
+
+-- Navegação
+local nextPageButton = Instance.new("TextButton")
+nextPageButton.Text = "▶"
+nextPageButton.Size = UDim2.new(0, 30, 0, 30)
+nextPageButton.Position = UDim2.new(1, -35, 0, 5)
+nextPageButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+nextPageButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+nextPageButton.Parent = frame
+
+local prevPageButton = Instance.new("TextButton")
+prevPageButton.Text = "◀"
+prevPageButton.Size = UDim2.new(0, 30, 0, 30)
+prevPageButton.Position = UDim2.new(0, 5, 0, 5)
+prevPageButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+prevPageButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+prevPageButton.Visible = false
+prevPageButton.Parent = frame
+
+-- Sistema de Páginas
+local currentPage = 1
+
+local function switchPage(newPage)
+    -- Fecha qualquer menu de dropdown que esteja aberto
+    skillMenu.Visible = false
+    bossMenu.Visible = false
+    teleportMenu.Visible = false
+
+    currentPage = newPage
+
+    -- Página 1: Skills
+    skillLabel.Visible = (currentPage == 1)
+    skillDropdown.Visible = (currentPage == 1)
+    runButtonSkill.Visible = (currentPage == 1)
+    stopButtonSkill.Visible = (currentPage == 1)
+
+    -- Página 2: Boss
+    farmBossLabel.Visible = (currentPage == 2)
+    farmBossDropdown.Visible = (currentPage == 2)
+    runButtonBoss.Visible = (currentPage == 2)
+    stopButtonBoss.Visible = (currentPage == 2)
+
+    -- Página 3: Configurações
+    configLabel.Visible = (currentPage == 3)
+    checkbox1.Visible = (currentPage == 3)
+    checkbox1Label.Visible = (currentPage == 3)
+    checkbox2.Visible = (currentPage == 3)
+    checkbox2Label.Visible = (currentPage == 3)
+    runButtonConfig.Visible = (currentPage == 3)
+    stopButtonConfig.Visible = (currentPage == 3)
+    
+    -- Página 4: Teleport (NOVA)
+    teleportLabel.Visible = (currentPage == 4)
+    teleportDropdown.Visible = (currentPage == 4)
+    teleportButton.Visible = (currentPage == 4)
+
+    -- Configurações de navegação
+    prevPageButton.Visible = (currentPage > 1)
+    nextPageButton.Visible = (currentPage < 4) -- Atualizado para 4 páginas
+
+    frame.Size = UDim2.new(0, 280, 0, 220)
+end
+
+nextPageButton.MouseButton1Click:Connect(function()
+    if currentPage < 4 then -- Atualizado para 4 páginas
+        switchPage(currentPage + 1)
+    end
+end)
+
+prevPageButton.MouseButton1Click:Connect(function()
+    if currentPage > 1 then
+        switchPage(currentPage - 1)
+    end
+end)
+
+-- Sistema de Arrastar GUI
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    frame.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- Sistema de Checkboxes
+local checkStates = {teste1 = false, teste2 = false}
+
+checkbox1.MouseButton1Click:Connect(function()
+    checkStates.teste1 = not checkStates.teste1
+    checkbox1.BackgroundColor3 = checkStates.teste1 and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(60, 60, 60)
+end)
+
+checkbox2.MouseButton1Click:Connect(function()
+    checkStates.teste2 = not checkStates.teste2
+    checkbox2.BackgroundColor3 = checkStates.teste2 and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(60, 60, 60)
+end)
+
+-- Função de utilidade para gerar IDs únicos
+function generateUniqueID()
+    return tostring(math.random(1000000000000000, 9999999999999999)) .. "." .. tostring(math.random())
+end
+
+--------------------------------------------------
+-- FUNCIONALIDADE: SISTEMA DE SKILLS (PÁGINA 1) --
+--------------------------------------------------
+
+-- Variáveis de controle para o sistema de skills
+local isFiringSkill = false
+
+-- Função para iniciar o uso da skill selecionada
+function startFiringSkill()
+    if debounceRunSkill then return end
+    debounceRunSkill = true
+    
+    if isFiringSkill then
+        debounceRunSkill = false
+        return
+    end
+    
+    isFiringSkill = true
+    
+    -- Obtém o valor real da skill selecionada (não o texto mostrado)
+    local skillName = skillDropdown.Name
+    
+    print("Skill selecionada para executar: " .. skillName)
+    
+    -- Busca o RemoteEvent correto com base no nome da skill
+    local Remote = player:FindFirstChild("PlayerGui")
+        and player.PlayerGui:FindFirstChild("CombatClient")
+        and player.PlayerGui.CombatClient:FindFirstChild(skillName)
+
+    if not Remote then
+        warn("RemoteEvent não encontrado para a skill: " .. skillName)
+        debounceRunSkill = false
+        isFiringSkill = false
+        return
+    end
+
+    -- Inicia o loop de execução da skill
+    task.spawn(function()
+        while isFiringSkill do
+            local args = {
+                [1] = 68889,
+                [2] = 14,
+                [3] = generateUniqueID(),
+                [4] = false
+            }
+            Remote:InvokeServer(unpack(args))
+            task.wait(0.1)
+        end
+        debounceRunSkill = false
+    end)
+end
+
+-- Função para parar o uso da skill
+function stopFiringSkill()
+    if debounceStopSkill then return end
+    debounceStopSkill = true
+    
+    isFiringSkill = false
+    print("Parando execução da skill")
+    debounceStopSkill = false
+end
+
+-- Conectando os botões às funções
+runButtonSkill.MouseButton1Click:Connect(startFiringSkill)
+stopButtonSkill.MouseButton1Click:Connect(stopFiringSkill)
+
+-------------------------------------------------
+-- FUNCIONALIDADE: SISTEMA DE BOSS (PÁGINA 2) --
+-------------------------------------------------
+-- Variáveis de controle para o sistema de boss
+local isFiringBoss = false
+local loadstringExecuted = {} -- Rastreia quais loadstrings já foram executados
+
+-- Função para iniciar o farm de boss selecionado
+function startFiringBoss()
+    if debounceRunBoss then return end
+    debounceRunBoss = true
+    
+    if isFiringBoss then
+        debounceRunBoss = false
+        return
+    end
+    
+    isFiringBoss = true
+    
+    -- Obtém o boss selecionado (não o texto mostrado)
+    local bossName = farmBossDropdown.Name
+    
+    print("Boss selecionado para farm: " .. bossName)
+    
+    -- Loop de farm de boss
+    task.spawn(function()
+        -- Executa o loadstring apenas uma vez por sessão de farming
+        if bossName == "Silver Lake" and not loadstringExecuted[bossName] then
+            -- Verificar se estamos na place correta
+            if game.PlaceId ~= 133649758958568 then
+                print("Você não está na place correta para farmar Silver Lake Boss")
+                isFiringBoss = false
+                debounceRunBoss = false
+                return
+            end
+            
+            -- Executa o script de farm via loadstring apenas uma vez
+            loadstringExecuted[bossName] = true
+            loadstring(game:HttpGet("https://pastebin.com/raw/hzG9DrDY"))()
+            print("Script de farming para Silver Lake carregado")
+        
+        elseif bossName == "Gear Savannah" and not loadstringExecuted[bossName] then
+            -- Verificar se estamos na place correta para Gear Savannah
+            if game.PlaceId ~= 92975923292118 then
+                print("Você não está na place correta para farmar Gear Savannah Boss")
+                isFiringBoss = false
+                debounceRunBoss = false
+                return
+            end
+            
+            loadstringExecuted[bossName] = true
+            loadstring(game:HttpGet("https://pastebin.com/raw/ZegfdpN6"))()
+        
+        elseif bossName == "Infinity Mountain" and not loadstringExecuted[bossName] then
+            if game.PlaceId ~= 138083468820287 then
+                print("Você não está na place correta para farmar Gear Infinity Mountain Boss")
+                isFiringBoss = false
+                debounceRunBoss = false
+                return
+            end
+ 
+            loadstringExecuted[bossName] = true
+            loadstring(game:HttpGet("https://pastebin.com/raw/Xt0uMQ2H"))()
+        
+        elseif bossName == "Goblimon Dungeon" and not loadstringExecuted[bossName] then
+			if game.PlaceId ~= 120958789962854 and game.PlaceId ~= 86392425558311 and game.PlaceId ~= 76011326497329 then
+				print("Você nao esta dentro da dg do goblimon!")
+				isFiringBoss = false
+				debounceRunBoss = false
+				return
+			end
+
+            loadstringExecuted[bossName] = true
+			loadstring(game:HttpGet("https://pastebin.com/raw/A5E91btk"))()
+	
+        elseif bossName == "ColiseumF" and not loadstringExecuted[bossName] then
+			if game.PlaceId ~= 80299472659017 then
+				local TeleportService = game:GetService("TeleportService")
+				local Players = game:GetService("Players")
+
+				local player = Players.LocalPlayer
+				local placeId = 80299472659017
+
+				if player then
+    				TeleportService:Teleport(placeId, player)
+    				print("[CLIENT] Teleportando para a place:", placeId)
+					return
+				else
+    				warn("[CLIENT] Erro ao encontrar o jogador local!")
+					return
+				end
+			end
+
+            loadstringExecuted[bossName] = true
+			loadstring(game:HttpGet("https://pastebin.com/raw/U8fHjW0B"))()
+            -- Lógica para o boss Coliseum
+            print("Script de farming para Coliseum carregado")
+
+        elseif bossName == "ColiseumN" and not loadstringExecuted[bossName] then
+			if game.PlaceId ~= 110577167676254 then
+				local TeleportService = game:GetService("TeleportService")
+				local Players = game:GetService("Players")
+
+				local player = Players.LocalPlayer
+				local placeId = 110577167676254
+
+				if player then
+    				TeleportService:Teleport(placeId, player)
+    				print("[CLIENT] Teleportando para a place:", placeId)
+					return
+				else
+    				warn("[CLIENT] Erro ao encontrar o jogador local!")
+					return
+				end
+			end
+
+            loadstringExecuted[bossName] = true
+			loadstring(game:HttpGet("https://pastebin.com/raw/U8fHjW0B"))()
+            -- Lógica para o boss Coliseum
+            print("Script de farming para Coliseum-N carregado")
+        end       
+
+        -- Loop para manter o farming ativo
+        while isFiringBoss do
+            -- Aqui podemos incluir qualquer lógica adicional que precise ser executada repetidamente
+            -- Por exemplo, verificações periódicas ou atualizações visuais
+            task.wait(1.0)
+        end
+        
+        debounceRunBoss = false
+    end)
+end
+
+-- Função para parar o farm de boss
+function stopFiringBoss()
+    if debounceStopBoss then return end
+    debounceStopBoss = true
+    
+    -- Obtém o boss que estava sendo farmado
+    local bossName = farmBossDropdown.Name
+    
+    -- Reseta o flag do loadstring para permitir que execute novamente
+    loadstringExecuted[bossName] = nil
+    
+    isFiringBoss = false
+    print("Parando farm de boss: " .. bossName)
+    debounceStopBoss = false
+end
+
+-- Conectando os botões às funções
+runButtonBoss.MouseButton1Click:Connect(startFiringBoss)
+stopButtonBoss.MouseButton1Click:Connect(stopFiringBoss)
+
+-----------------------------------------------------
+-- FUNCIONALIDADE: SISTEMA DE CONFIGURAÇÃO (PÁGINA 3) --
+-----------------------------------------------------
+
+-- Variáveis de controle para o sistema de configuração
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local debounceRunConfig = false
+local debounceStopConfig = false
+local isFiringConfig = false
+local checkStates = {
+    antiModerator = false,  -- Alterado de teste1
+    lowPlayers = false      -- Alterado de teste2
+}
+
+-- Lista de IDs de moderadores (adicione os IDs relevantes)
+local moderator_list = {
+    2551005924,  -- Exemplo 1
+    5119382479,  -- Exemplo 2
+    32717175,
+    65508361,
+    264394148,
+    461191071,
+    7769465364,
+    277175759,
+    1412329195,
+    1966856223,
+    111505379,
+    19537640,
+    419886014,
+    11057676,
+    1647462646,
+    88675896,
+    1680501146,
+    44451297
+}
+
+-- Função para encontrar e entrar no servidor com menor população
+function findLowPlayerServer()
+    local Http = game:GetService("HttpService")
+    local TPS = game:GetService("TeleportService")
+    local Api = "https://games.roblox.com/v1/games/"
+
+    local _place = game.PlaceId
+    local _servers = Api.._place.."/servers/Public?sortOrder=Asc&limit=100"
+    
+    local function ListServers(cursor)
+       local Raw = game:HttpGet(_servers .. ((cursor and "&cursor="..cursor) or ""))
+       return Http:JSONDecode(Raw)
+    end
+
+    local Server, Next; repeat
+       local Servers = ListServers(Next)
+       Server = Servers.data[1]
+       Next = Servers.nextPageCursor
+    until Server
+
+    print("Teleporting to server with ID: " .. Server.id)
+    TPS:TeleportToPlaceInstance(_place, Server.id, game:GetService('Players').LocalPlayer)
+end
+
+-- Função para verificar e desconectar se moderadores estiverem no servidor
+local function checkAndRemoveModerators()
+    for _, player in ipairs(Players:GetPlayers()) do
+        for _, moderatorId in ipairs(moderator_list) do
+            if player.UserId == moderatorId then
+                -- Teleportando o moderador para a nova place
+                print("Moderador detectado: " .. player.Name .. " (" .. player.UserId .. ")")
+                TeleportService:Teleport(114035449487554, player)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Variáveis de controle para o sistema de configuração
+local checkStates = {
+    antiModerator = false,
+    lowPlayers = false
+}
+
+-- Função para iniciar as configurações selecionadas
+function startFiringConfig()
+    if debounceRunConfig then return end
+    debounceRunConfig = true
+
+    if isFiringConfig then
+        debounceRunConfig = false
+        return
+    end
+
+    isFiringConfig = true
+
+    print("Configurações ativadas:")
+    print("- Anti-Moderador: " .. (checkStates.antiModerator and "SIM" or "NÃO"))
+	print("- Low Players Server: " .. (checkStates.lowPlayers and "SIM" or "NÃO"))
+
+	-- Verificar se o LowPlayers está ativado e executar o teleporte imediatamente
+    if checkStates.lowPlayers then
+        findLowPlayerServer()
+    end
+
+    task.spawn(function()
+        while isFiringConfig do
+            if checkStates.antiModerator then
+                -- Verifica moderadores a cada 5 segundos
+                if checkAndRemoveModerators() then
+                    -- Se um moderador for detectado, para a verificação
+                    break
+                end
+            end
+            
+            task.wait(5)  -- Verificação a cada 5 segundos
+        end
+        debounceRunConfig = false
+    end)
+end
+
+-- Função para parar a execução das configurações
+function stopFiringConfig()
+    isFiringConfig = false
+    print("Configurações desativadas.")
+end
+
+-- Conectar eventos de clique às checkboxes
+checkbox1.MouseButton1Click:Connect(function()
+    checkStates.antiModerator = not checkStates.antiModerator
+    checkbox1.BackgroundColor3 = checkStates.antiModerator and 
+        Color3.fromRGB(0, 170, 255) or 
+        Color3.fromRGB(60, 60, 60)
+end)
+
+checkbox2.MouseButton1Click:Connect(function()
+    checkStates.lowPlayers = not checkStates.lowPlayers
+    checkbox2.BackgroundColor3 = checkStates.lowPlayers and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(60, 60, 60)
+end)
+
+-- Conectar botões de início/parada
+runButtonConfig.MouseButton1Click:Connect(startFiringConfig)
+stopButtonConfig.MouseButton1Click:Connect(stopFiringConfig)
+
+
+-----------------------------------------------------
+-- FUNCIONALIDADE: SISTEMA DE TELEPORTE (PÁGINA 4) --
+-----------------------------------------------------
+local TeleportService = game:GetService("TeleportService")
+
+-- Função para teleportar para o local selecionado
+function doTeleport()
+    if debounceTeleport then return end
+    debounceTeleport = true
+    
+    -- Obtém o valor do local selecionado (o valor real, não o texto exibido)
+    local locationValue = teleportDropdown.Name
+    local locationName = "Desconhecido"
+    local placeId = nil
+    
+    -- Determina o nome da localização e o PlaceId baseado no valor
+    if locationValue == "92975923292118" then
+        locationName = "Gear Savannah"
+        placeId = 92975923292118
+    elseif locationValue == "138083468820287" then
+        locationName = "Infinity Mountain"
+        placeId = 138083468820287
+    end
+    
+    -- Verifica se o PlaceId é válido
+    if placeId then
+        print("Teleportando para: " .. locationName .. " (PlaceId: " .. placeId .. ")")
+        
+        -- Teleporta o jogador para o PlaceId especificado
+        local success, errorMessage = pcall(function()
+            TeleportService:Teleport(placeId, game:GetService("Players").LocalPlayer)
+        end)
+        
+        -- Trata possíveis erros durante o teleporte
+        if not success then
+            warn("Erro ao teleportar: " .. tostring(errorMessage))
+            -- Opcional: Pode adicionar uma mensagem de notificação para o jogador
+        else
+            print("Teleporte iniciado com sucesso!")
+        end
+    else
+        warn("PlaceId inválido para teleporte")
+    end
+    
+    debounceTeleport = false
+end
+
+-- Conecta o botão de teleporte à função
+teleportButton.MouseButton1Click:Connect(doTeleport)
+
+-- Inicializa a GUI na primeira página
+switchPage(1)
