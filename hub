@@ -2022,35 +2022,42 @@ end
 runButtonConfig.MouseButton1Click:Connect(startFiringConfig)
 stopButtonConfig.MouseButton1Click:Connect(stopFiringConfig)
 
--- Teleport Button Function
+-----------------------------------------------------
+-- FUNCIONALIDADE: SISTEMA DE TELEPORTE E TROCA (PÁGINA 4) --
+-----------------------------------------------------
+
+-- Botão de teleporte
 teleportButton.MouseButton1Click:Connect(function()
     if debounceTeleport then return end
     debounceTeleport = true
+
+    -- Pegando a opção selecionada
+    local selectedIndex = table.find(teleportOptions, teleportDropdown.Name)
     
-    local teleportId = teleportDropdown.Name
-    print("Teleporting to: " .. teleportId)
-    
-    -- Implement your teleport logic here
-    -- Example:
-    local success = pcall(function()
-        -- Replace with actual code to teleport
-        -- For example, you might call a remote event:
-        -- game:GetService("ReplicatedStorage").RemoteEvents.Teleport:FireServer(teleportId)
-    end)
-    
-    if success then
-        -- Visual feedback for the button
-        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Green
+    if selectedIndex then
+        local teleportId = teleportValues[selectedIndex] -- Obtém o ID correto
+        print("Teleportando para: " .. teleportOptions[selectedIndex] .. " (ID: " .. teleportId .. ")")
+
+        -- Tentando teleportar
+        local success, err = pcall(function()
+            TeleportService:Teleport(tonumber(teleportId), player) -- Teleporta o jogador
+        end)
+
+        -- Feedback visual
+        if success then
+            TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Verde
+        else
+            warn("Falha ao teleportar: " .. err)
+            TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(239, 68, 68)}):Play() -- Vermelho
+        end
+        
         wait(0.5)
-        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
+        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Volta ao rosa
     else
-        -- Error feedback
-        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(239, 68, 68)}):Play() -- Red
-        wait(0.5)
-        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
+        warn("Nenhuma opção de teleporte selecionada!")
     end
-    
-    wait(1) -- Debounce time
+
+    wait(1) -- Tempo de debounce
     debounceTeleport = false
 end)
 
