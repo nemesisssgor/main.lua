@@ -1726,7 +1726,7 @@ local function startEggFunction(selection)
     task.spawn(function()
         if selection == "HATCH EGG" then
             print("RODANDO GUI ovo")
-			-- Animação de saída (desliza para baixo)
+		-- Animação de saída (desliza para baixo)
         	local exitTween = TweenService:Create(
             	mainFrame,
             	TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -1743,11 +1743,11 @@ local function startEggFunction(selection)
                 	-- Encontrar o Frame dentro de "InfinityHub"
                 	local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
                 	if infinityHubFrame then
-                    	-- Tornar o Frame invisível
-                    	infinityHubFrame.Visible = false
+                    		-- Tornar o Frame invisível
+                    		infinityHubFrame.Visible = false
                 	end
             	end
-        	end)
+
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/egg", true))() 
         elseif selection == "CLONE" then
             	print("RODANDO GUI CLONE")
@@ -1768,11 +1768,11 @@ local function startEggFunction(selection)
                 	-- Encontrar o Frame dentro de "InfinityHub"
                 	local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
                 	if infinityHubFrame then
-                    	-- Tornar o Frame invisível
-                    	infinityHubFrame.Visible = false
+                    		-- Tornar o Frame invisível
+                    		infinityHubFrame.Visible = false
                 	end
             	end
-        	end)
+
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/clone.lua", true))() 
         elseif selection == "OPEN BOX" then
             print("RODANDO GUI box")
