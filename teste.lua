@@ -9,11 +9,18 @@ local cloningFrame = playerGui:WaitForChild("CloningSystem"):WaitForChild("Cloni
 local craftFrame = cloningFrame:WaitForChild("CraftFrame")
 local craftButton = craftFrame:WaitForChild("Craft")
 
+-- Variável para controlar a visibilidade
+local isCloningFrameVisible = true
+
 -- Monitorar visibilidade continuamente e reativar se for alterada
 runService.RenderStepped:Connect(function()
-    if not cloningFrame.Visible then cloningFrame.Visible = true end
-    if not craftFrame.Visible then craftFrame.Visible = true end
-    if not craftButton.Visible then craftButton.Visible = true end
+    if not isCloningFrameVisible then
+        cloningFrame.Visible = false
+    else
+        if not cloningFrame.Visible then cloningFrame.Visible = true end
+        if not craftFrame.Visible then craftFrame.Visible = true end
+        if not craftButton.Visible then craftButton.Visible = true end
+    end
 end)
 
 -- Removendo o botão "Close" se existir
@@ -46,7 +53,7 @@ uiGradient.Parent = returnButton
 
 -- Função para esconder o frame Cloning ao clicar no botão Return
 local function hideCloningFrame()
-    cloningFrame.Visible = false
+    isCloningFrameVisible = false
 end
 
 -- Conectar a função ao clique do botão
