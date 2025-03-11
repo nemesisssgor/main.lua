@@ -66,9 +66,9 @@ end
 -- Conectar a função ao clique do botão Return
 -- Exemplo de como restaurar manualmente
 returnButton.MouseButton1Click:Connect(function()
-        hideCloningFrame()
-        local coreGui = game:GetService("CoreGui")
-        local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
+    hideCloningFrame()
+    local coreGui = game:GetService("CoreGui")
+    local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
             
     if infinityHubScreenGui then
         -- Encontrar o Frame dentro de "InfinityHub"
