@@ -9,6 +9,8 @@ local cloningFrame = playerGui:WaitForChild("CloningSystem"):WaitForChild("Cloni
 local craftFrame = cloningFrame:WaitForChild("CraftFrame")
 local craftButton = craftFrame:WaitForChild("Craft")
 
+local gameId = game.placeId
+
 -- Variável para controlar a visibilidade
 local isCloningFrameVisible = true
 
@@ -27,7 +29,7 @@ end)
 local closeButton = cloningFrame:FindFirstChild("Close")
 if closeButton then
     closeButton:Destroy()
-end
+end)
 
 -- Criando o botão "Return"
 local returnButton = Instance.new("TextButton")
@@ -65,6 +67,18 @@ end
 -- Exemplo de como restaurar manualmente
 returnButton.MouseButton1Click:Connect(function()
         hideCloningFrame()
+        local coreGui = game:GetService("CoreGui")
+        local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
+            
+    if infinityHubScreenGui then
+        -- Encontrar o Frame dentro de "InfinityHub"
+        local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
+        if infinityHubFrame then
+        -- Tornar o Frame invisível
+            infinityHubFrame.Visible = true
+            infinityHubScreenGui.TextButton.Visible = true
+        end
+    end
 end)
 
 showCloningFrame()
