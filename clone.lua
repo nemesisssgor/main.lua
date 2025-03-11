@@ -9,16 +9,26 @@ local cloningFrame = playerGui:WaitForChild("CloningSystem"):WaitForChild("Cloni
 local craftFrame = cloningFrame:WaitForChild("CraftFrame")
 local craftButton = craftFrame:WaitForChild("Craft")
 
-
-
 -- Variável para controlar a visibilidade
 local isCloningFrameVisible = true
 
+-- Função para esconder o frame Cloning
+local function hideCloningFrame()
+    isCloningFrameVisible = false
+    cloningFrame.Visible = false
+end
+
+-- Função para tornar o frame Cloning visível novamente
+local function showCloningFrame()
+    isCloningFrameVisible = true
+    cloningFrame.Visible = true
+    craftFrame.Visible = true
+    craftButton.Visible = true
+end
+
 -- Monitorar visibilidade continuamente e reativar se for alterada
 runService.RenderStepped:Connect(function()
-    if not isCloningFrameVisible then
-        cloningFrame.Visible = false
-    else
+    if isCloningFrameVisible then
         if not cloningFrame.Visible then cloningFrame.Visible = true end
         if not craftFrame.Visible then craftFrame.Visible = true end
         if not craftButton.Visible then craftButton.Visible = true end
@@ -29,7 +39,7 @@ end)
 local closeButton = cloningFrame:FindFirstChild("Close")
 if closeButton then
     closeButton:Destroy()
-end)
+end
 
 -- Criando o botão "Return"
 local returnButton = Instance.new("TextButton")
@@ -53,32 +63,27 @@ uiGradient.Color = ColorSequence.new{
 uiGradient.Rotation = 90
 uiGradient.Parent = returnButton
 
--- Função para esconder o frame Cloning ao clicar no botão Return
-local function hideCloningFrame()
-    isCloningFrameVisible = false
-end
-
--- Função para tornar o frame Cloning visível novamente
-local function showCloningFrame()
-    isCloningFrameVisible = true
-end
-
 -- Conectar a função ao clique do botão Return
--- Exemplo de como restaurar manualmente
 returnButton.MouseButton1Click:Connect(function()
     hideCloningFrame()
+    
+    -- Verificar se o CoreGui tem o "InfinityHub" e ativar o Frame
     local coreGui = game:GetService("CoreGui")
     local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
-            
+    
     if infinityHubScreenGui then
-        -- Encontrar o Frame dentro de "InfinityHub"
         local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
         if infinityHubFrame then
-        -- Tornar o Frame invisível
             infinityHubFrame.Visible = true
-            infinityHubScreenGui.TextButton.Visible = true
+        end
+
+        -- Se existir um botão dentro do InfinityHub, tornar visível
+        local textButton = infinityHubScreenGui:FindFirstChild("TextButton")
+        if textButton then
+            textButton.Visible = true
         end
     end
 end)
 
+-- **Garante que o frame apareça quando o código for executado**
 showCloningFrame()
