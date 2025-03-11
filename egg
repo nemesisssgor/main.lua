@@ -646,6 +646,7 @@ local function teleportCameraAndCreatePlatform()
             local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
             if infinityHubFrame then
                 infinityHubFrame.Visible = true
+		infinityHubScreenGui.TextButton.Visible = true
             end
         end
         
