@@ -1536,7 +1536,7 @@ function startFiringBoss()
      
                 -- Executa o script de farm via loadstring apenas uma vez
                 loadstringExecuted[selectedBoss] = true
-                loadstring(game:HttpGet("https://pastebin.com/raw/hzG9DrDY"))()
+                loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/silver", true))()
                 print("Script de farming para Silver Lake carregado")
      
             elseif selectedBoss == "Gear Savannah" and not loadstringExecuted[selectedBoss] then
@@ -1549,7 +1549,7 @@ function startFiringBoss()
                 end
      
                 loadstringExecuted[selectedBoss] = true
-                loadstring(game:HttpGet("https://pastebin.com/raw/ZegfdpN6"))()
+                loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/gear", true))()
      
             elseif selectedBoss == "Infinity Mountain" and not loadstringExecuted[selectedBoss] then
                 if game.PlaceId ~= 138083468820287 then
@@ -1560,7 +1560,7 @@ function startFiringBoss()
                 end
      
                 loadstringExecuted[selectedBoss] = true
-                loadstring(game:HttpGet("https://pastebin.com/raw/Xt0uMQ2H"))()
+                loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/mountain", true))()
      
             elseif selectedBoss == "Goblimon Dungeon" and not loadstringExecuted[selectedBoss] then
                 if game.PlaceId ~= 120958789962854 and game.PlaceId ~= 86392425558311 and game.PlaceId ~= 76011326497329 then
