@@ -1747,7 +1747,7 @@ local function startEggFunction(selection)
                     		infinityHubFrame.Visible = false
                 	end
             	end
-
+		end)
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/egg", true))() 
         elseif selection == "CLONE" then
             	print("RODANDO GUI CLONE")
@@ -1772,7 +1772,7 @@ local function startEggFunction(selection)
                     		infinityHubFrame.Visible = false
                 	end
             	end
-
+		end)
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/nemesisssgor/main.lua/refs/heads/main/clone.lua", true))() 
         elseif selection == "OPEN BOX" then
             print("RODANDO GUI box")
