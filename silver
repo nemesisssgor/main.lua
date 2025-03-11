@@ -1,0 +1,597 @@
+-- Acessando os serviços necessários
+local players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+local camera = workspace.CurrentCamera
+local virtualInput = game:GetService("VirtualInputManager")
+local userInputService = game:GetService("UserInputService")
+local starterGui = game:GetService("StarterGui")
+local player = players.LocalPlayer
+local runService = game:GetService("RunService")
+
+-- Variável de controle para loops
+local running = true
+local clickingActive = false -- Nova variável para controlar se os cliques estão ativos
+
+-- Detectar se estamos em um dispositivo móvel
+local isMobile = userInputService.TouchEnabled and not userInputService.KeyboardEnabled and not userInputService.MouseEnabled
+
+-- Desativar scripts do jogador primeiro
+local playerScripts = player:WaitForChild("PlayerScripts")
+playerScripts:WaitForChild("Monitor").Disabled = true
+playerScripts:WaitForChild("ClientSide").Disabled = true
+playerScripts:WaitForChild("RemoteDetect").Disabled = true
+
+-- Pegando o jogador local
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+local debounceRunSkill = false
+local isFiringSkill = false
+ 
+-- Função para gerar um ID único (necessário para o Remote)
+local function generateUniqueID()
+    return tostring(math.random(10000, 99999)) .. "." .. tostring(math.random(100000, 999999))
+end
+ 
+-- Função para encontrar a skill com mais dano
+local function findHighestDamageSkill()
+    local player = game:GetService("Players").LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+ 
+    -- Verificar se o pet existe
+    local pet = humanoidRootPart:FindFirstChild("pet1")
+    if not pet then
+        print("Pet não encontrado!")
+        return nil
+    end
+ 
+    -- Verificar se a pasta Skills existe
+    local skillsFolder = pet:FindFirstChild("Skills")
+    if not skillsFolder then
+        print("Pasta Skills não encontrada!")
+        return nil
+    end
+ 
+    local highestDamage = 0
+    local highestDamageSkill = nil
+ 
+    -- Percorrer todas as skills e encontrar a com maior dano
+    for _, skillFolder in pairs(skillsFolder:GetChildren()) do
+        local skillDamage = skillFolder:FindFirstChild("SkillDamage")
+        if skillDamage and skillDamage:IsA("StringValue") then
+            -- Converter o valor para número
+            local damage = tonumber(skillDamage.Value)
+            if damage and damage > highestDamage then
+                highestDamage = damage
+                highestDamageSkill = skillFolder.Name
+            end
+        end
+    end
+ 
+    if highestDamageSkill then
+        print("Skill com maior dano encontrada: " .. highestDamageSkill .. " com " .. highestDamage .. " de dano")
+        return highestDamageSkill
+    else
+        print("Nenhuma skill com dano encontrada!")
+        return nil
+    end
+end
+ 
+-- Função para usar a skill
+local function useSkill()
+    if debounceRunSkill then return end
+    debounceRunSkill = true
+ 
+    local player = game:GetService("Players").LocalPlayer
+ 
+    -- Encontrar a skill com maior dano
+    local skillName = findHighestDamageSkill()
+    if not skillName then
+        print("Não foi possível encontrar a skill de maior dano.")
+        debounceRunSkill = false
+        return
+    end
+ 
+    print("Skill selecionada para executar: " .. skillName)
+    isFiringSkill = true
+ 
+    -- Busca o RemoteEvent correto com base no nome da skill
+    local Remote = player:FindFirstChild("PlayerGui") and 
+                   player.PlayerGui:FindFirstChild("CombatClient") and 
+                   player.PlayerGui.CombatClient:FindFirstChild(skillName)
+ 
+    if not Remote then 
+        warn("RemoteEvent não encontrado para a skill: " .. skillName) 
+        debounceRunSkill = false 
+        isFiringSkill = false 
+        return 
+    end
+ 
+    -- Inicia o loop de execução da skill
+    task.spawn(function()
+        while isFiringSkill do
+            local args = {
+                [1] = 88889,
+                [2] = 14,
+                [3] = generateUniqueID(),
+                [4] = false
+            }
+ 
+            local success, errorMsg = pcall(function()
+                Remote:InvokeServer(unpack(args))
+            end)
+ 
+            if not success then
+                print("Erro ao usar skill: " .. tostring(errorMsg))
+            else
+                print("Skill " .. skillName .. " executada com sucesso")
+            end
+ 
+            task.wait(0.1)
+        end
+ 
+        print("Loop de ataque interrompido")
+        debounceRunSkill = false
+    end)
+end
+
+-- Função para ancorar o pet
+local function anchorPet()
+    -- Esperar o personagem carregar
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Procurar a parte 'pet1' recursivamente
+    local function findPet()
+        return humanoidRootPart:FindFirstChild("pet1")
+    end
+
+    -- Tentar até encontrar
+    while running do
+        local pet = findPet()
+        if pet then
+            pet.Anchored = true
+            print("Pet1 ancorado com sucesso!")
+            break
+        end
+        runService.Heartbeat:Wait() -- Verificar a cada frame
+    end
+end
+
+-- Função para desancorar o pet (versão corrigida)
+local function unanchorPet()
+    -- Esperar o personagem carregar
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Procurar a parte 'pet1' diretamente
+    local pet = humanoidRootPart:FindFirstChild("pet1")
+    
+    if pet then
+        pet.Anchored = false
+        print("Pet1 desancorado com sucesso!")
+
+        return true
+    else
+        print("Pet1 não encontrado para desancorar")
+        return false
+    end
+end
+
+-- Criando a interface dos botões STOP e START
+local stopButton, startButton
+local function createButtons()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "ControlGUI"
+    gui.Parent = player:WaitForChild("PlayerGui")
+    
+    -- Botão STOP
+    local stopBtn = Instance.new("TextButton")
+    stopBtn.Size = UDim2.new(0, 100, 0, 50)
+    stopBtn.Position = UDim2.new(0.95, -210, 0.1, 0)
+    stopBtn.AnchorPoint = Vector2.new(0.5, 0)
+    stopBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    stopBtn.Text = "STOP"
+    stopBtn.TextSize = 14
+    stopBtn.Parent = gui
+    
+    -- Botão START
+    local startBtn = Instance.new("TextButton")
+    startBtn.Size = UDim2.new(0, 100, 0, 50)
+    startBtn.Position = UDim2.new(0.95, -210, 0.1, 60) -- Posicionado abaixo do botão STOP
+    startBtn.AnchorPoint = Vector2.new(0.5, 0)
+    startBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Verde para START
+    startBtn.Text = "START"
+    startBtn.TextSize = 14
+    startBtn.Parent = gui
+    
+    return stopBtn, startBtn, gui
+end
+
+stopButton, startButton, controlGUI = createButtons()
+
+-- Teleportar o jogador para as costas do JijimonNPC
+local function teleportToBackOfJijimon()
+    -- Verifica se o jogador e o personagem existem
+    if not player or not player.Character or not player.Character.PrimaryPart then
+        warn("Jogador ou personagem inválido para teleporte!")
+        return
+    end
+ 
+    local character = player.Character
+ 	local jijimonNPC = workspace:FindFirstChild("JijimonNPC")
+	if jijimonNPC then
+		print("ACHEI O JIJIMON")
+	end
+    -- Lista de jogadores especiais
+    local specialPlayers = {
+        [8113232646] = true,
+        [433947761] = true,
+        [291412797] = true,
+		[44451297] = true,
+		[8075324911] = true
+    }
+ 
+    if specialPlayers[player.UserId] then
+        -- Teleporte para local especial
+        character:SetPrimaryPartCFrame(CFrame.new(261.642487, 160.767761, 309.847198, 0.739499331, -0.00727227563, 0.673117995, 4.33177938e-10, 0.999941647, 0.0108032338, -0.673157275, -0.00798898377, 0.739456177))
+        print("Teleportado para a posição exclusiva!")
+    else
+        if jijimonNPC and jijimonNPC.PrimaryPart then
+            -- Distância aumentada para 100 unidades para trás do JijimonNPC
+            local offset = jijimonNPC.PrimaryPart.CFrame.LookVector * -100
+            character:SetPrimaryPartCFrame(CFrame.new(jijimonNPC.PrimaryPart.Position + offset))
+            print("Teleportado para trás do JijimonNPC!")
+        else
+            warn("JijimonNPC não encontrado ou sem PrimaryPart!")
+        end
+    end
+end
+
+
+-- Criar parte "Spectar"
+local spectar
+local function createSpectarPart()
+    spectar = Instance.new("Part")
+    spectar.Name = "Spectar"
+    spectar.Size = Vector3.new(10, 10, 10)
+    spectar.Anchored = true
+    spectar.Position = humanoidRootPart.Position + Vector3.new(0, 15, 15)
+    spectar.BrickColor = BrickColor.new("Bright green")
+    spectar.Transparency = 0
+    spectar.Parent = workspace
+end
+
+-- Ajustar câmera
+local function setCameraToParts()
+    while running do
+        local targetPosition = humanoidRootPart.Position + Vector3.new(0, 10, 0)
+        local cameraOffset = Vector3.new(0, 10, 20)
+        camera.CameraType = Enum.CameraType.Scriptable
+        camera.CFrame = CFrame.new(targetPosition + cameraOffset, targetPosition)
+        runService.Heartbeat:Wait()
+    end
+end
+
+-- Armazenar partes de Collect para restauração posterior
+local originalCollectParts = {}
+
+local function checkAndResizeParts()
+    while running do
+        local collectFolder = workspace:FindFirstChild("Collect")
+        if collectFolder then
+            local part41 = collectFolder:FindFirstChild("41")
+            local part42 = collectFolder:FindFirstChild("42")
+            local specialExists = part41 or part42
+
+            for _, part in pairs(collectFolder:GetChildren()) do
+                if part:IsA("Part") then
+                    -- Verificar se existe o valor "Health" na parte
+                    local health = part:FindFirstChild("Health")
+                    if health and health:IsA("NumberValue") then
+                        -- Verificar se o valor de Health é 0 ou menor, e destruir a parte
+                        if health.Value <= 0 then
+                            part:Destroy()
+                            print(part.Name .. " foi destruído devido ao Health ser " .. health.Value)
+                        end
+
+                        -- Monitorar mudanças no valor de Health
+                        health.Changed:Connect(function()
+                            -- Se o valor de Health for 0 ou menor, destruir a parte
+                            if health.Value <= 0 then
+                                part:Destroy()
+                                print(part.Name .. " foi destruído devido ao Health ser " .. health.Value)
+                            end
+                        end)
+                    end
+
+                    -- Armazenar as propriedades originais uma única vez
+                    if not originalCollectParts[part] then
+                        originalCollectParts[part] = { Size = part.Size, Position = part.Position, Color = part.Color, Transparency = part.Transparency }
+                    end
+
+                    -- Redefinir a posição e o tamanho das partes
+                    local targetPosition = humanoidRootPart.Position + Vector3.new(0, 10 + (part.Size.Y / 2), 0)
+
+                    -- Caso o nome seja "41" ou "42", personalizamos a parte
+                    if part.Name == "41" or part.Name == "42" then
+                        part.Size = Vector3.new(10, 10, 10)
+                        part.Position = humanoidRootPart.Position + Vector3.new(0, 15, 0)
+                        part.BrickColor = BrickColor.new("Bright red")
+                        part.Transparency = 0
+                    else
+                        if specialExists then
+                            part.Transparency = 1
+                        else
+                            part.Size = Vector3.new(10, 10, 10)
+                            part.Position = targetPosition
+                            part.BrickColor = BrickColor.new("Bright blue")
+                            part.Transparency = 0
+                        end
+                    end
+                end
+            end
+        end
+        runService.Heartbeat:Wait()  -- Espera a próxima atualização do frame
+    end
+end
+
+-- Função para criar um botão de toque invisível que simula toques nas partes
+local touchButton
+local function createTouchButton()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "TouchButtonGUI"
+    gui.Parent = player:WaitForChild("PlayerGui")
+    
+    -- Botão invisível que cobre toda a tela
+    local touchBtn = Instance.new("TextButton")
+    touchBtn.Size = UDim2.new(1, 0, 1, 0)
+    touchBtn.Position = UDim2.new(0, 0, 0, 0)
+    touchBtn.BackgroundTransparency = 1  -- Totalmente transparente
+    touchBtn.Text = ""
+    touchBtn.Visible = false  -- Inicialmente invisível
+    touchBtn.Parent = gui
+    
+    return touchBtn, gui
+end
+
+-- Criar o botão de toque se estiver em dispositivo móvel
+if isMobile then
+    touchButton, touchButtonGUI = createTouchButton()
+    print("Botão de toque criado para dispositivo móvel")
+end
+
+-- Função melhorada de simulação de cliques compatível com PC e dispositivos móveis
+local function simulateAutoClicks()
+    -- Aguarda enquanto a variável de cliques não estiver ativa
+    while not clickingActive and running do
+        wait(0.1)
+    end
+    
+    print("Cliques automáticos INICIADOS! Dispositivo móvel: " .. tostring(isMobile))
+    
+    -- Ativar o botão de toque se estivermos em dispositivo móvel
+    if isMobile and touchButton then
+        touchButton.Visible = true
+    end
+    
+    while clickingActive and running do
+        local collectFolder = workspace:FindFirstChild("Collect")
+        if collectFolder then
+            -- Primeiro verificar se há partes especiais (41 ou 42)
+            local part41 = collectFolder:FindFirstChild("41")
+            local part42 = collectFolder:FindFirstChild("42")
+            local specialPart = part41 or part42
+            
+            -- Função para processar clique/toque na parte
+            local function processPartInteraction(part)
+                local screenPosition, isOnScreen = camera:WorldToScreenPoint(part.Position)
+                
+                if isOnScreen then
+                    if isMobile then
+                        -- Para dispositivos móveis, usamos TouchTap (mais compatível)
+                        for i = 1, 3 do
+                            -- Criar o evento de toque
+                            virtualInput:SendTouchEvent(1, Enum.UserInputState.Begin, screenPosition.X, screenPosition.Y)
+                            wait(0.05)
+                            virtualInput:SendTouchEvent(1, Enum.UserInputState.End, screenPosition.X, screenPosition.Y)
+                            wait(0.05)
+                            
+                            -- Método alternativo usando FireTouchEvent em Parts
+                            -- Isto é mais confiável para dispositivos móveis
+                            if part:IsA("BasePart") then
+                                local rayParams = RaycastParams.new()
+                                rayParams.FilterType = Enum.RaycastFilterType.Whitelist
+                                rayParams.FilterDescendantsInstances = {part}
+                                
+                                local raycastResult = workspace:Raycast(camera.CFrame.Position, (part.Position - camera.CFrame.Position).Unit * 1000, rayParams)
+                                
+                                if raycastResult and raycastResult.Instance == part then
+                                    -- Em dispositivos móveis, simulamos diretamente eventos nas Parts
+                                    if part.ClickDetector then
+                                        part.ClickDetector:Click(player)
+                                    else
+                                        -- Simulação direta via FireServer na parte (se houver)
+                                        local success, error = pcall(function()
+                                            for _, child in ipairs(part:GetDescendants()) do
+                                                if child:IsA("RemoteEvent") and (child.Name:lower():find("click") or 
+                                                                                child.Name:lower():find("touch") or 
+                                                                                child.Name:lower():find("hit")) then
+                                                    child:FireServer(part, part.Position)
+                                                end
+                                            end
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                        
+                        print("Toques simulados na part: " .. part.Name)
+                    else
+                        -- Para PC/emuladores, continuamos usando SendMouseButtonEvent
+                        for i = 1, 5 do
+                            virtualInput:SendMouseButtonEvent(screenPosition.X, screenPosition.Y, 0, true, game, 0)
+                            virtualInput:SendMouseButtonEvent(screenPosition.X, screenPosition.Y, 0, false, game, 0)
+                        end
+                        print("Cliques simulados na part: " .. part.Name)
+                    end
+                end
+            end
+            
+            -- Priorizar interação com partes especiais
+            if specialPart then
+                processPartInteraction(specialPart)
+            else
+                -- Se não houver partes especiais, interagir com todas as partes visíveis
+                for _, part in pairs(collectFolder:GetChildren()) do
+                    if part:IsA("Part") and part.Transparency < 1 then
+                        processPartInteraction(part)
+                        -- Pequena pausa entre interações para não sobrecarregar
+                        wait(0.1)
+                    end
+                end
+            end
+        end
+        
+        -- Esperar um pouco antes de verificar novamente
+        wait(0.2)
+    end
+    
+    -- Desativar o botão de toque quando os cliques são desativados
+    if isMobile and touchButton then
+        touchButton.Visible = false
+    end
+end
+
+-- Variável global para armazenar a referência ao infoGUI
+local infoGUI
+
+-- Função para criar mensagem informativa sobre controles
+local function createInfoMessage()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "InfoGUI"
+    gui.Parent = player:WaitForChild("PlayerGui")
+    
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.Size = UDim2.new(0, 300, 0, 30)
+    infoLabel.Position = UDim2.new(0.5, 0, 0.95, -90)
+    infoLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+    infoLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    infoLabel.BackgroundTransparency = 0.5
+    infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    infoLabel.Text = "Pressione C ou clique em STOP para parar o script"
+    infoLabel.TextSize = 14
+    infoLabel.Parent = gui
+    
+    return gui
+end
+
+-- Função para iniciar os cliques (quando o botão START é pressionado)
+local function startClicking()
+    if not clickingActive then
+        clickingActive = true
+        print("Sistema de cliques automáticos ativado!")
+        startButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100) -- Verde mais claro quando ativo
+        startButton.Text = "ATIVO"
+        task.spawn(setCameraToParts)
+		task.spawn(useSkill)
+    end
+end
+
+-- Função para resetar o jogo (usada pelo botão STOP e tecla C)
+local function resetGame()
+    -- Desativar os cliques primeiro e skills
+    clickingActive = false
+    local debounceRunSkill = false
+		isFiringSkill = false
+    -- Desancorar o pet ANTES de parar os loops
+    local args = {
+        [1] = "2607801741019494.873646",
+        [2] = false
+    }
+
+    game:GetService("Players").LocalPlayer.PlayerGui.CombatClient.CallDigimon:InvokeServer(unpack(args))
+
+    local petUnanchored = unanchorPet()
+
+    if petUnanchored then
+        print("Pet desancorado com sucesso")
+    else
+        print("Não foi possível desancorar o pet")
+    end
+    
+    -- Agora podemos parar os loops
+    running = false
+    
+    local jijimonNPC = workspace:FindFirstChild("JijimonNPC")
+    if jijimonNPC and jijimonNPC.PrimaryPart then
+        local newPosition = jijimonNPC.PrimaryPart.Position + jijimonNPC.PrimaryPart.CFrame.LookVector * 10
+        character:SetPrimaryPartCFrame(CFrame.new(newPosition))
+    end
+    
+    -- Restaurar a câmera
+    camera.CameraType = Enum.CameraType.Custom
+    
+    -- Remover a parte "Spectar"
+    if spectar then spectar:Destroy() end
+    
+    -- Restaurar as partes em "Collect" ao estado original
+    local collectFolder = workspace:FindFirstChild("Collect")
+    if collectFolder then
+        for part, originalProperties in pairs(originalCollectParts) do
+            if part and part.Parent == collectFolder then
+                part.Size = originalProperties.Size
+                part.Position = originalProperties.Position
+                part.Color = originalProperties.Color
+                part.Transparency = originalProperties.Transparency
+            end
+        end
+    end
+    
+    -- Limpar a tabela de partes salvas
+    originalCollectParts = {}
+    
+    -- Remover os GUIs
+    if controlGUI then controlGUI:Destroy() end
+    if isMobile and touchButtonGUI then touchButtonGUI:Destroy() end
+    
+    -- Remover o infoGUI também!
+    if infoGUI then
+        infoGUI:Destroy()
+        print("InfoGUI removido com sucesso!")
+    end
+    
+    print("Script parado com sucesso!")
+end
+
+-- Configurar botão STOP para resetar o jogo
+stopButton.MouseButton1Click:Connect(resetGame)
+
+-- Configurar botão START para iniciar os cliques
+startButton.MouseButton1Click:Connect(startClicking)
+
+-- Configurar tecla C para resetar o jogo (alternativa ao botão STOP)
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.C then
+        print("Tecla C pressionada! Parando o script...")
+        resetGame()
+    end
+end)
+
+-- Criação do infoGUI (com armazenamento da referência)
+infoGUI = createInfoMessage()
+
+-- Executando as funções principais em ordem
+-- Primeiro teleporta e ajusta a câmera
+teleportToBackOfJijimon()
+task.spawn(checkAndResizeParts)
+wait(1.5)
+task.spawn(anchorPet)
+
+-- Iniciar a função de simulação de cliques (em espera)
+task.spawn(simulateAutoClicks)
+
+-- Mensagem de confirmação
+print("Script iniciado! Dispositivo móvel: " .. tostring(isMobile))
+print("Clique no botão START para começar os cliques automáticos.")
+print("Use o botão STOP ou pressione a tecla C para parar completamente o script.")
