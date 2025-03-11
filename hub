@@ -1,15 +1,19 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-
+local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
 
--- Configurações globais
+-- Global settings
 local DROPDOWN_ITEM_HEIGHT = 30
 local SCROLLBAR_OFFSET = 10
-local VISIBLE_OPTIONS = 2  -- Número de opções visíveis inicialmente no dropdown
+local VISIBLE_OPTIONS = 2  -- Number of initially visible options in dropdown
 
--- Variáveis de controle
+-- Control variables
 local debounceRunSkill = false
 local debounceStopSkill = false
 local debounceRunBoss = false
@@ -18,57 +22,303 @@ local debounceRunConfig = false
 local debounceStopConfig = false
 local debounceTeleport = false
 
--- Criando a GUI
+-- Create main GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player:FindFirstChild("PlayerGui")
+screenGui.Name = "InfinityHub"
+screenGui.Parent = CoreGui  -- Using CoreGui instead of PlayerGui
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 220)
-frame.Position = UDim2.new(0.5, -140, 0.4, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
+-- Main hub frame with purple/pink gradient
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
-local uiCorner = Instance.new("UICorner", frame)
-uiCorner.CornerRadius = UDim.new(0, 10)
+-- Gradient background
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(147, 51, 234)), -- Purple at top
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(236, 72, 153))  -- Pink at bottom
+})
+gradient.Rotation = 90
+gradient.Parent = mainFrame
 
--- Função para criar dropdowns com scroll limitado a 2 opções visíveis
+-- Rounded corners
+local uiCorner = Instance.new("UICorner", mainFrame)
+uiCorner.CornerRadius = UDim.new(0, 12)
+
+-- Shadow effect
+local shadow = Instance.new("ImageLabel")
+shadow.Name = "Shadow"
+shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+shadow.BackgroundTransparency = 1
+shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+shadow.Size = UDim2.new(1, 30, 1, 30)
+shadow.ZIndex = -1
+shadow.Image = "rbxassetid://74216415862458"
+shadow.ImageColor3 = Color3.fromRGB(236, 72, 153) -- Pink shadow
+shadow.ImageTransparency = 0.5
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+shadow.Parent = mainFrame
+
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(126, 34, 206) -- Darker purple
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleBarCorner = Instance.new("UICorner", titleBar)
+titleBarCorner.CornerRadius = UDim.new(0, 12)
+
+-- Title text (adjust size to make room for image)
+local titleText = Instance.new("TextLabel")
+titleText.Text = "LUCEMON HUB"
+titleText.Size = UDim2.new(0.7, -20, 1, 0) -- Reduced width to make room for image
+titleText.Position = UDim2.new(0, 20, 0, 0)
+titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleText.TextSize = 18
+titleText.Font = Enum.Font.GothamBold
+titleText.BackgroundTransparency = 1
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.Parent = titleBar
+
+-- Add an ImageLabel to the titleBar (next to the text)
+local imageLabel = Instance.new("ImageLabel")
+imageLabel.Name = "LogoImage2"
+imageLabel.Size = UDim2.new(0, 30, 0, 30) -- Fixed size for the icon
+imageLabel.Position = UDim2.new(0.5, 0, 0.5, 0) -- Position to the right of the text
+imageLabel.AnchorPoint = Vector2.new(0, 0.5) -- Anchor at left middle
+imageLabel.BackgroundTransparency = 1 -- Make background transparent
+imageLabel.Image = "rbxassetid://85600397289363"
+imageLabel.ScaleType = Enum.ScaleType.Fit -- Scale the image to fit
+imageLabel.Parent = titleBar
+
+-- Close button
+local closeButton = Instance.new("TextButton")
+closeButton.Text = "×"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(168, 85, 247) -- Light purple
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 24
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = titleBar
+
+local closeButtonCorner = Instance.new("UICorner", closeButton)
+closeButtonCorner.CornerRadius = UDim.new(0, 8)
+
+-- Minimize button (place this after the close button code)
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Text = "-"
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -70, 0, 5) -- Position to the left of close button
+minimizeButton.BackgroundColor3 = Color3.fromRGB(168, 85, 247) -- Light purple
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextSize = 24
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Parent = titleBar
+
+local minimizeButtonCorner = Instance.new("UICorner", minimizeButton)
+minimizeButtonCorner.CornerRadius = UDim.new(0, 8)
+
+-- Store original size and position
+local originalSize = mainFrame.Size
+local originalPosition = mainFrame.Position
+
+-- Create small circular button for maximizing (initially hidden)
+local maximizeButton = Instance.new("TextButton")
+maximizeButton.Size = UDim2.new(0, 50, 0, 50)
+maximizeButton.Position = UDim2.new(0.9, 0, 0.9, 0) -- Bottom right of screen
+maximizeButton.BackgroundColor3 = Color3.fromRGB(147, 51, 234) -- Purple
+maximizeButton.Text = "+"
+maximizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+maximizeButton.TextSize = 30
+maximizeButton.Font = Enum.Font.GothamBold
+maximizeButton.Visible = false
+maximizeButton.Parent = screenGui
+
+local maximizeButtonCorner = Instance.new("UICorner", maximizeButton)
+maximizeButtonCorner.CornerRadius = UDim.new(1, 0) -- Make it a perfect circle
+
+-- Add gradient to maximize button
+local maximizeGradient = Instance.new("UIGradient")
+maximizeGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(147, 51, 234)), -- Purple
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(236, 72, 153))  -- Pink
+})
+maximizeGradient.Rotation = 45
+maximizeGradient.Parent = maximizeButton
+
+-- Add drop shadow to maximize button
+local maximizeShadow = Instance.new("ImageLabel")
+maximizeShadow.Name = "Shadow"
+maximizeShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+maximizeShadow.BackgroundTransparency = 1
+maximizeShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+maximizeShadow.Size = UDim2.new(1, 10, 1, 10)
+maximizeShadow.ZIndex = -1
+maximizeShadow.Image = "rbxassetid://74216415862458" -- Use the same shadow asset as main frame
+maximizeShadow.ImageColor3 = Color3.fromRGB(236, 72, 153) -- Pink shadow
+maximizeShadow.ImageTransparency = 0.5
+maximizeShadow.ScaleType = Enum.ScaleType.Slice
+maximizeShadow.SliceCenter = Rect.new(49, 49, 450, 450)
+maximizeShadow.Parent = maximizeButton
+
+-- Content frame
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, -40, 1, -100)
+contentFrame.Position = UDim2.new(0, 20, 0, 60)
+contentFrame.BackgroundColor3 = Color3.fromRGB(91, 33, 182) -- Medium purple
+contentFrame.BorderSizePixel = 0
+contentFrame.Parent = mainFrame
+
+local contentFrameCorner = Instance.new("UICorner", contentFrame)
+contentFrameCorner.CornerRadius = UDim.new(0, 10)
+
+-- Add an ImageLabel to the ContentFrame
+local imageLabel = Instance.new("ImageLabel")
+imageLabel.Name = "LogoImage"
+imageLabel.Size = UDim2.new(0.8, 0, 0.6, 0) -- Much larger size (80% of width, 60% of height)
+imageLabel.Position = UDim2.new(0.5, 0, 0.5, -25) -- Centered in the frame, slight adjustment for tabs
+imageLabel.AnchorPoint = Vector2.new(0.5, 0.5) -- This makes the position reference the center of the image
+imageLabel.BackgroundTransparency = 1 -- Make background transparent
+imageLabel.Image = "rbxassetid://109994091783540"
+imageLabel.ScaleType = Enum.ScaleType.Fit -- Scale the image to fit
+imageLabel.Parent = contentFrame
+
+-- Add a UICorner to the image (optional, for rounded corners)
+local imageCorner = Instance.new("UICorner", imageLabel)
+imageCorner.CornerRadius = UDim.new(0, 8)
+
+-- Navigation tabs
+local tabFrame = Instance.new("Frame")
+tabFrame.Name = "TabFrame"
+tabFrame.Size = UDim2.new(1, 0, 0, 40)
+tabFrame.Position = UDim2.new(0, 0, 1, 10)
+tabFrame.BackgroundTransparency = 1
+tabFrame.Parent = contentFrame
+
+-- Function to create tab buttons with images and text
+local function createTabButton(text, iconId, index, total)
+    local tabButton = Instance.new("TextButton")
+    tabButton.Name = "Tab" .. index
+    tabButton.Text = ""  -- Clear text since we'll use a separate label
+    tabButton.Size = UDim2.new(1/total, -5, 1, 0)
+    tabButton.Position = UDim2.new((index-1)/total, (index-1)*5, 0, 0)
+    tabButton.BackgroundColor3 = Color3.fromRGB(139, 92, 246) -- Light purple for inactive tabs
+    tabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    tabButton.TextSize = 14
+    tabButton.Font = Enum.Font.GothamSemibold
+    tabButton.Parent = tabFrame
+    
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 8)
+    tabCorner.Parent = tabButton
+    
+    -- Create icon
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 30, 0, 30)
+    icon.Position = UDim2.new(0.5, -15, 0.15, 0)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxassetid://" .. iconId
+    icon.Name = "Icon"
+    icon.Parent = tabButton
+    
+    -- Create text label
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.Position = UDim2.new(0, 0, 0.5, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(240, 240, 240)
+    label.TextSize = 12
+    label.Font = Enum.Font.GothamSemibold
+    label.Name = "Label"
+    label.TextXAlignment = Enum.TextXAlignment.Center
+    label.Parent = tabButton
+    
+    return tabButton, icon, label
+end
+
+-- Create tab buttons with icons and text
+-- Replace these icon IDs with actual Roblox asset IDs for your icons
+local skillsIconId = "73483910649605"
+local bossIconId = "86316932300788"
+local configIconId = "112292638097484"
+local teleportIconId = "121981322628687"
+
+-- NOME DOS BOTOES
+
+local tabSkills, skillsIcon, skillsLabel = createTabButton("SKILLS", skillsIconId, 1, 4)
+local tabBoss, bossIcon, bossLabel = createTabButton("FARM", bossIconId, 2, 4) 
+local tabConfig, configIcon, configLabel = createTabButton("UTILS", configIconId, 3, 4)
+local tabTeleport, teleportIcon, teleportLabel = createTabButton("MAPS", teleportIconId, 4, 4)
+
+-- Function to create stylized dropdowns
 local function createDropdown(parent, options, optionLabels, default, defaultLabel, yPosition)
+    local dropdownContainer = Instance.new("Frame")
+    dropdownContainer.Size = UDim2.new(1, 0, 0, 35)
+    dropdownContainer.Position = UDim2.new(0, 0, 0, yPosition)
+    dropdownContainer.BackgroundTransparency = 1
+    dropdownContainer.Parent = parent
+    
     local dropdown = Instance.new("TextButton")
     dropdown.Text = defaultLabel or default
-    dropdown.Size = UDim2.new(1, -20, 0, 30)
-    dropdown.Position = UDim2.new(0, 10, 0, yPosition)
-    dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    dropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dropdown.Parent = parent
+    dropdown.Size = UDim2.new(1, 0, 1, 0)
+    dropdown.BackgroundColor3 = Color3.fromRGB(214, 188, 250) -- Light lavender
+    dropdown.TextColor3 = Color3.fromRGB(60, 7, 95) -- Dark purple
+    dropdown.TextSize = 14
+    dropdown.Font = Enum.Font.GothamSemibold
+    dropdown.Parent = dropdownContainer
     
-    -- Guarda o valor real (não visível para o usuário)
+    local dropdownCorner = Instance.new("UICorner", dropdown)
+    dropdownCorner.CornerRadius = UDim.new(0, 8)
+    
+    local dropdownArrow = Instance.new("TextLabel")
+    dropdownArrow.Text = "▼"
+    dropdownArrow.Size = UDim2.new(0, 20, 0, 20)
+    dropdownArrow.Position = UDim2.new(1, -25, 0.5, -10)
+    dropdownArrow.BackgroundTransparency = 1
+    dropdownArrow.TextColor3 = Color3.fromRGB(91, 33, 182) -- Medium purple
+    dropdownArrow.TextSize = 12
+    dropdownArrow.Font = Enum.Font.GothamBold
+    dropdownArrow.Parent = dropdown
+
+    -- Store the real value (not visible to user)
     dropdown.Name = default
-    
-    -- Criando um frame com limite de tamanho para conter o menu
-    -- Ajustando o tamanho para mostrar apenas VISIBLE_OPTIONS itens
+
+    -- Creating a frame with size limit to contain the menu
     local menuContainer = Instance.new("Frame")
-    menuContainer.Size = UDim2.new(1, -20, 0, VISIBLE_OPTIONS * DROPDOWN_ITEM_HEIGHT)
-    menuContainer.Position = UDim2.new(0, 10, 0, yPosition + 35)
-    menuContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    menuContainer.ClipsDescendants = true -- Importante: recorta conteúdo que sai dos limites
+    menuContainer.Size = UDim2.new(1, 0, 0, VISIBLE_OPTIONS * DROPDOWN_ITEM_HEIGHT)
+    menuContainer.Position = UDim2.new(0, 0, 1, 5)
+    menuContainer.BackgroundColor3 = Color3.fromRGB(74, 78, 76) -- Light purple
+    menuContainer.ClipsDescendants = true
     menuContainer.Visible = false
-    menuContainer.Parent = parent
+    menuContainer.ZIndex = 10
+    menuContainer.Parent = dropdownContainer
     
-    -- Frame do menu que será rolado
+    local menuContainerCorner = Instance.new("UICorner", menuContainer)
+    menuContainerCorner.CornerRadius = UDim.new(0, 8)
+
+    -- Scrolling frame for menu
     local scroll = Instance.new("ScrollingFrame")
     scroll.Size = UDim2.new(1, 0, 1, 0)
     scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 8
-    scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255) -- Cor da barra de rolagem
-    scroll.CanvasSize = UDim2.new(0, 0, 0, #options * DROPDOWN_ITEM_HEIGHT) -- Tamanho baseado no número de opções
+    scroll.ScrollBarThickness = 4
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(12, 13, 14) -- Pink scrollbar
+    scroll.CanvasSize = UDim2.new(0, 0, 0, #options * DROPDOWN_ITEM_HEIGHT)
+    scroll.ZIndex = 10
     scroll.Parent = menuContainer
-    
-    -- Se tivermos mais que VISIBLE_OPTIONS, ajustamos a barra de rolagem para mostrar que há mais conteúdo
+
+    -- If we have more than VISIBLE_OPTIONS, adjust the scrollbar to show there's more content
     if #options > VISIBLE_OPTIONS then
-        scroll.CanvasPosition = Vector2.new(0, 0)  -- Começa no topo
+        scroll.CanvasPosition = Vector2.new(0, 0)  -- Start at the top
     end
 
     for i, option in ipairs(options) do
@@ -76,31 +326,37 @@ local function createDropdown(parent, options, optionLabels, default, defaultLab
         btn.Text = optionLabels and optionLabels[i] or option
         btn.Size = UDim2.new(1, -SCROLLBAR_OFFSET, 0, DROPDOWN_ITEM_HEIGHT - 5)
         btn.Position = UDim2.new(0, 5, 0, (i-1)*DROPDOWN_ITEM_HEIGHT)
-        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        btn.BackgroundColor3 = Color3.fromRGB(0,0,0) -- Light purple-pink
         btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.TextSize = 14
+        btn.Font = Enum.Font.GothamSemibold
+        btn.ZIndex = 10
         btn.Parent = scroll
         
-        -- Guarda o valor real (não visível para o usuário)
+        local btnCorner = Instance.new("UICorner", btn)
+        btnCorner.CornerRadius = UDim.new(0, 6)
+
+        -- Store the real value (not visible to user)
         btn.Name = option
 
         btn.MouseButton1Click:Connect(function()
             dropdown.Text = btn.Text
-            dropdown.Name = option  -- Armazena o valor real
+            dropdown.Name = option  -- Store the real value
             menuContainer.Visible = false
         end)
     end
 
     dropdown.MouseButton1Click:Connect(function()
         menuContainer.Visible = not menuContainer.Visible
-        
-        -- Detecta cliques fora do menu para fechá-lo
+
+        -- Detect clicks outside the menu to close it
         if menuContainer.Visible then
             local connection
             connection = UserInputService.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     local position = input.Position
                     local guiObjects = screenGui:GetGuiObjectsAtPosition(position.X, position.Y)
-                    
+
                     local clickedOnMenu = false
                     for _, obj in ipairs(guiObjects) do
                         if obj:IsDescendantOf(menuContainer) or obj == dropdown then
@@ -108,7 +364,7 @@ local function createDropdown(parent, options, optionLabels, default, defaultLab
                             break
                         end
                     end
-                    
+
                     if not clickedOnMenu then
                         menuContainer.Visible = false
                         connection:Disconnect()
@@ -121,243 +377,661 @@ local function createDropdown(parent, options, optionLabels, default, defaultLab
     return dropdown, menuContainer
 end
 
--- Página 1: Sistema de Skills
+-- Function to create styled buttons
+local function createStyledButton(text, color, x, y, parent)
+    local button = Instance.new("TextButton")
+    button.Text = text
+    button.Size = UDim2.new(0.45, 0, 0, 40)
+    button.Position = UDim2.new(x, 0, y, 0)
+    button.BackgroundColor3 = color
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.GothamBold
+    button.Parent = parent
+    
+    local buttonCorner = Instance.new("UICorner", button)
+    buttonCorner.CornerRadius = UDim.new(0, 8)
+    
+    -- Create shadow effect
+    local buttonShadow = Instance.new("Frame")
+    buttonShadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    buttonShadow.BackgroundTransparency = 0.7
+    buttonShadow.Size = UDim2.new(1, 0, 1, 0)
+    buttonShadow.Position = UDim2.new(0, 2, 0, 2)
+    buttonShadow.ZIndex = -1
+    buttonShadow.Parent = button
+    
+    local buttonShadowCorner = Instance.new("UICorner", buttonShadow)
+    buttonShadowCorner.CornerRadius = UDim.new(0, 8)
+    
+    -- Hover and click effects
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = color:Lerp(Color3.fromRGB(255, 255, 255), 0.2)}):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+    end)
+    
+    button.MouseButton1Down:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(0.45, 0, 0, 38), Position = UDim2.new(x, 0, y, 1)}):Play()
+    end)
+    
+    button.MouseButton1Up:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(0.45, 0, 0, 40), Position = UDim2.new(x, 0, y, 0)}):Play()
+    end)
+    
+    return button
+end
+
+
+-- Create page containers
+local pageSkills = Instance.new("Frame")
+pageSkills.Name = "PageSkills"
+pageSkills.Size = UDim2.new(1, 0, 1, -50)
+pageSkills.BackgroundTransparency = 1
+pageSkills.Parent = contentFrame
+
+local pageBoss = Instance.new("Frame")
+pageBoss.Name = "PageBoss"
+pageBoss.Size = UDim2.new(1, 0, 1, -50)
+pageBoss.BackgroundTransparency = 1
+pageBoss.Visible = false
+pageBoss.Parent = contentFrame
+
+local pageConfig = Instance.new("Frame")
+pageConfig.Name = "PageConfig"
+pageConfig.Size = UDim2.new(1, 0, 1, -50)
+pageConfig.BackgroundTransparency = 1
+pageConfig.Visible = false
+pageConfig.Parent = contentFrame
+
+local pageTeleport = Instance.new("Frame")
+pageTeleport.Name = "PageTeleport"
+pageTeleport.Size = UDim2.new(1, 0, 1, -50)
+pageTeleport.BackgroundTransparency = 1
+pageTeleport.Visible = false
+pageTeleport.Parent = contentFrame
+
+-- Page 1: Skills System
 local skillLabel = Instance.new("TextLabel")
-skillLabel.Text = "Infinity (Free): dc #submissogore:"
-skillLabel.Size = UDim2.new(1, -20, 0, 25)
-skillLabel.Position = UDim2.new(0, 10, 0, 10)
-skillLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+skillLabel.Text = "NO COOLDOWN"
+skillLabel.Size = UDim2.new(1, 0, 0, 25)
+skillLabel.Position = UDim2.new(0, 0, 0, 10)
+skillLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+skillLabel.TextSize = 14
+skillLabel.Font = Enum.Font.GothamSemibold
 skillLabel.BackgroundTransparency = 1
-skillLabel.Parent = frame
+skillLabel.Parent = pageSkills
 
--- Definir as opções e seus rótulos para exibição
+-- Define options and their labels for display
 local skillOptions = {"Skill1", "Skill2", "Skill3", "Skill4"}
-local skillLabels = {"Skill1(FREE)", "Skill2(FREE)", "Skill3(PRO)", "Skill4(PRO)"}
-local skillDropdown, skillMenu = createDropdown(frame, skillOptions, skillLabels, "Skill1", "Skill1(FREE)", 35)
+local skillLabels = {"Skill1", "Skill2", "Skill3", "Skill4"}
+local skillDropdown, skillMenu = createDropdown(pageSkills, skillOptions, skillLabels, "Skill1", "CHOOSE SKILL", 40)
 
--- Botões Página 1
-local runButtonSkill = Instance.new("TextButton")
-runButtonSkill.Text = "RUN SKILL"
-runButtonSkill.Size = UDim2.new(0.45, 0, 0, 40)
-runButtonSkill.Position = UDim2.new(0.025, 0, 1, -50)
-runButtonSkill.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-runButtonSkill.TextColor3 = Color3.fromRGB(255, 255, 255)
-runButtonSkill.Parent = frame
+-- Definindo a imagem da skill
+local skillImage = Instance.new("ImageLabel")
+skillImage.Size = UDim2.new(0, 50, 0, 50) -- Tamanho da imagem
+skillImage.Position = UDim2.new(0.5, -25, 0, 100) -- Centralizado horizontalmente e um pouco abaixo do dropdown
+skillImage.Image = "rbxassetid://130707804189775" -- Substitua pelo ID da sua imagem
+skillImage.BackgroundTransparency = 1
+skillImage.Parent = pageSkills
 
-local stopButtonSkill = Instance.new("TextButton")
-stopButtonSkill.Text = "STOP SKILL"
-stopButtonSkill.Size = UDim2.new(0.45, 0, 0, 40)
-stopButtonSkill.Position = UDim2.new(0.525, 0, 1, -50)
-stopButtonSkill.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-stopButtonSkill.TextColor3 = Color3.fromRGB(255, 255, 255)
-stopButtonSkill.Parent = frame
+-- Ajuste os botões para ficarem um pouco mais abaixo
+local runButtonSkill = createStyledButton("RUN SKILL", Color3.fromRGB(217, 70, 239), 0.025, 0.85, pageSkills) -- Pink button
+local stopButtonSkill = createStyledButton("STOP SKILL", Color3.fromRGB(168, 85, 247), 0.525, 0.85, pageSkills) -- Purple button
 
 -- Página 2: Sistema de Boss
-local farmBossLabel = Instance.new("TextLabel")
-farmBossLabel.Text = "AUTO FARM + BOSS(FREE):"
-farmBossLabel.Size = UDim2.new(1, -20, 0, 25)
-farmBossLabel.Position = UDim2.new(0, 10, 0, 10)
-farmBossLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-farmBossLabel.BackgroundTransparency = 1
-farmBossLabel.Visible = false
-farmBossLabel.Parent = frame
+local bossLabel = Instance.new("TextLabel")
+bossLabel.Text = "AUTO FARM"
+bossLabel.Size = UDim2.new(1, 0, 0, 25)
+bossLabel.Position = UDim2.new(0, 0, 0, 10)
+bossLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+bossLabel.TextSize = 18
+bossLabel.Font = Enum.Font.GothamSemibold
+bossLabel.BackgroundTransparency = 1
+bossLabel.Parent = pageBoss
 
+-- Constants for dropdown
+local VISIBLE_OPTIONS = 5
+local DROPDOWN_ITEM_HEIGHT = 25
+local SCROLLBAR_OFFSET = 8
+
+-- Opções de Boss
 local bossOptions = {"Silver Lake", "Gear Savannah", "Infinity Mountain", "Goblimon Dungeon", "ColiseumF", "ColiseumN"}
-local bossLabels = {"Silver Lake", "Gear Savannah(PRO)", "Infinity Mountain(PRO)", "Goblimon Dungeon(PRO)", "Coliseum-Easy(PRO)", "Coliseum-Normal(PRO)"}
-local farmBossDropdown, bossMenu = createDropdown(frame, bossOptions, bossLabels, "Silver Lake", "Silver Lake", 35)
-farmBossDropdown.Visible = false
+local bossLabels = {"Silver Lake", "Gear Savannah", "Infinity Mountain", "Goblimon Dungeon", "Coliseum-Easy", "Coliseum-Normal"}
+local farmBossDropdown, bossMenu = createDropdown(pageBoss, bossOptions, bossLabels, "CHOOSE A MAP", "CHOOSE A MAP", 40)
 
--- Botões Página 2
-local runButtonBoss = Instance.new("TextButton")
-runButtonBoss.Text = "RUN FARM"
-runButtonBoss.Size = UDim2.new(0.45, 0, 0, 40)
-runButtonBoss.Position = UDim2.new(0.025, 0, 1, -50)
-runButtonBoss.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-runButtonBoss.TextColor3 = Color3.fromRGB(255, 255, 255)
-runButtonBoss.Visible = false
-runButtonBoss.Parent = frame
+--Segunda dropdown para filtro de Digimon
+local digimonFilterLabel = Instance.new("TextLabel")
+digimonFilterLabel.Text = "DROPS"
+digimonFilterLabel.Size = UDim2.new(1, 0, 0, 25)
+digimonFilterLabel.Position = UDim2.new(0, 0, 0, 85) -- Posição abaixo do primeiro dropdown
+digimonFilterLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+digimonFilterLabel.TextSize = 18
+digimonFilterLabel.Font = Enum.Font.GothamSemibold
+digimonFilterLabel.BackgroundTransparency = 1
+digimonFilterLabel.Parent = pageBoss
 
-local stopButtonBoss = Instance.new("TextButton")
-stopButtonBoss.Text = "STOP FARM"
-stopButtonBoss.Size = UDim2.new(0.45, 0, 0, 40)
-stopButtonBoss.Position = UDim2.new(0.525, 0, 1, -50)
-stopButtonBoss.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-stopButtonBoss.TextColor3 = Color3.fromRGB(255, 255, 255)
-stopButtonBoss.Visible = false
-stopButtonBoss.Parent = frame
+-- Opções de Digimon dependendo da localização do boss
+local digimonOptions = {
+    ["DEFAULT"] = {"..."},
+    ["Silver Lake"] = {"ALL", "Betamon", "Goblimon", "Pagumon", "Koromon", "Tanemon", "Shellmon", "Kuwagamon", "Seadramon"},
+    ["Gear Savannah"] = {"ALL", "Chuumon", "Hagurumon", "Monocromon", "Kabuterimon", "Meramon", "Ogremon", "Leomon"},
+    ["Infinity Mountain"] = {"ALL", "Bakemon", "DarkTyrannomon", "DemiDevimon", "Icemon", "Strikedramon", "Unimon", "WaruMonzaemon"},
+    ["Goblimon Dungeon"] = {"ALL","Nunemon(DG)","Goblimon(DG)","Geremon(DG)", "Ogremon(DG)", "(Mutant)Ogremon(DG)"},
+    ["ColiseumF"] = {"ALL", "DROP-EASY"},
+    ["ColiseumN"] = {"ALL", "DROP-NORMAL"}
+}
 
--- Página 3: Configurações
+-- Criação da segunda dropdown com o mesmo estilo da primeira
+local digimonDropdown, digimonMenu = createDropdown(pageBoss, digimonOptions["DEFAULT"], digimonOptions["DEFAULT"], "SELECT DIGIMON", "SELECT DIGIMON", 110)
+
+-- Criando o Frame de Drops com Scroll
+local dropFrame = Instance.new("ScrollingFrame")
+dropFrame.Size = UDim2.new(1, 0, 0, 60) -- Altura ajustada para caber os ícones
+dropFrame.Position = UDim2.new(0, 0, 0, 150) -- Abaixo do dropdown de Digimon
+dropFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+dropFrame.BackgroundTransparency = 0.5
+dropFrame.ClipsDescendants = true -- Garante que nada saia do frame
+dropFrame.ScrollBarThickness = 5 -- Espessura da barra de rolagem
+dropFrame.ScrollingDirection = Enum.ScrollingDirection.X -- Apenas rolagem horizontal
+dropFrame.CanvasSize = UDim2.new(0, 0, 1, 0) -- Será ajustado dinamicamente
+dropFrame.Parent = pageBoss
+
+-- Criando o layout horizontal
+local dropLayout = Instance.new("UIListLayout")
+dropLayout.FillDirection = Enum.FillDirection.Horizontal
+dropLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+dropLayout.Padding = UDim.new(0, 2) -- Espaço de 2 pixels entre as imagens
+dropLayout.Parent = dropFrame
+
+-- Tamanho dos ícones de drop
+local iconSize = 50
+local padding = 2
+
+-- Lista de itens que cada Digimon pode dropar
+local dropItems = {
+
+-- SILVER LAKE
+
+	["Tanemon"] = {"rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580", "rbxassetid://120577960152525"},
+
+	["Koromon"] = {"rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580", "rbxassetid://120577960152525"},
+
+	["Pagumon"] = {"rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580", "rbxassetid://120577960152525"},
+
+    ["Betamon"] = {"rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://90628470639823", "rbxassetid://110710931561580", "rbxassetid://120577960152525"},
+
+    ["Goblimon"] = {"rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://90628470639823", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+    ["Shellmon"] = {"rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://132650897244180", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+ 	["Kuwagamon"] = {"rbxassetid://104022886918572","rbxassetid://125455561343928","rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://90628470639823", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+ 	["Seadramon"] = {"rbxassetid://104022886918572","rbxassetid://125455561343928","rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://132650897244180", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+-- GEAR SAVANNAH
+
+    ["Chuumon"] = {"rbxassetid://70597639785910", "rbxassetid://96095742617119", "rbxassetid://101165498615532", "rbxassetid://83876662493603", "rbxassetid://110710931561580", "rbxassetid://90628470639823", "rbxassetid://120577960152525", "rbxassetid://11419398477"},
+
+	["Hagurumon"] = {"rbxassetid://70597639785910", "rbxassetid://96095742617119", "rbxassetid://101165498615532", "rbxassetid://83876662493603", "rbxassetid://110710931561580", "rbxassetid://90628470639823", "rbxassetid://120577960152525", "rbxassetid://11419398477"},
+
+	["Monocromon"] = {"rbxassetid://80016018495938","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://110710931561580", "rbxassetid://132650897244180", "rbxassetid://120577960152525", "rbxassetid://11419398477"},
+
+	["Kabuterimon"] = {"rbxassetid://80016018495938","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://110710931561580", "rbxassetid://123897877308482", "rbxassetid://120577960152525", "rbxassetid://11419398477"},
+
+	["Meramon"] = {"rbxassetid://104022886918572","rbxassetid://110710931561580", "rbxassetid://82304261757913", "rbxassetid://120577960152525", "rbxassetid://125455561343928","rbxassetid://11419398477"},
+
+	["Ogremon"] = {"rbxassetid://104022886918572","rbxassetid://110710931561580","rbxassetid://82304261757913","rbxassetid://126874403147013", "rbxassetid://120577960152525", "rbxassetid://125455561343928","rbxassetid://11419398477"},
+
+	["Leomon"] = {"rbxassetid://104022886918572","rbxassetid://110710931561580","rbxassetid://115913257259766","rbxassetid://126874403147013", "rbxassetid://82304261757913", "rbxassetid://120577960152525","rbxassetid://125455561343928","rbxassetid://11419398477"},
+
+-- INFINITY MOUNTAIN
+
+	["Bakemon"] = {"rbxassetid://80016018495938","rbxassetid://110710931561580","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://120577960152525", "rbxassetid://90628470639823", "rbxassetid://11419398477"},
+
+	["DarkTyrannomon"] = {"rbxassetid://80016018495938","rbxassetid://110710931561580","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://120577960152525", "rbxassetid://90628470639823", "rbxassetid://11419398477"},
+
+	["DemiDevimon"] = {"rbxassetid://80016018495938","rbxassetid://110710931561580","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://120577960152525", "rbxassetid://90628470639823", "rbxassetid://11419398477"},
+
+	["Icemon"] = {"rbxassetid://80016018495938","rbxassetid://110710931561580","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://120577960152525", "rbxassetid://132650897244180","rbxassetid://11419398477"},
+
+	["Strikedramon"] = {"rbxassetid://80016018495938","rbxassetid://110710931561580","rbxassetid://89497539420580","rbxassetid://71363478184268", "rbxassetid://118239989281166", "rbxassetid://83876662493603", "rbxassetid://120577960152525", "rbxassetid://123897877308482", "rbxassetid://11419398477"},
+
+	["WaruMonzaemon"] ={"rbxassetid://104022886918572","rbxassetid://110710931561580","rbxassetid://115913257259766","rbxassetid://126874403147013", "rbxassetid://82304261757913", "rbxassetid://120577960152525","rbxassetid://125455561343928","rbxassetid://11419398477"},
+
+	["Unimon"] = {"rbxassetid://104022886918572","rbxassetid://110710931561580","rbxassetid://126874403147013", "rbxassetid://82304261757913", "rbxassetid://120577960152525","rbxassetid://125455561343928","rbxassetid://11419398477"},
+
+--GOBLIMON DUNGEON
+
+    ["Nunemon(DG)"] = {"rbxassetid://121068432912756","rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+    ["Goblimon(DG)"] = {"rbxassetid://129394483780993","rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+    ["Geremon(DG)"] = {"rbxassetid://129486797925047","rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+    ["Ogremon(DG)"] = {"rbxassetid://80905496360597","rbxassetid://83876662493603", "rbxassetid://11419398477", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+    ["(Mutant)Ogremon(DG)"] = {"rbxassetid://115714173624201","rbxassetid://77773103648166","rbxassetid://103442336711037","rbxassetid://11419398477", "rbxassetid://110710931561580","rbxassetid://120577960152525"},
+
+-- COLISEU Facil/Normal
+
+	["DROP-EASY"] = {"rbxassetid://124329985263695", "rbxassetid://12419912580"},
+	["DROP-NORMAL"] = {"rbxassetid://124329985263695", "rbxassetid://117017101614025"},
+
+}
+-- Função para atualizar os drops quando um Digimon for selecionado
+local function updateDrops(selectedDigimon, selectedBoss)
+    -- Limpar imagens antigas
+    for _, child in pairs(dropFrame:GetChildren()) do
+        if child:IsA("ImageLabel") then
+            child:Destroy()
+        end
+    end
+
+    local items = {}
+    local uniqueImages = {} -- Tabela para armazenar imagens únicas
+
+    -- Se "ALL" for selecionado, pegar os Digimons desse Boss e juntar todos os drops sem repetir
+    if selectedDigimon == "ALL" and selectedBoss and digimonOptions[selectedBoss] then
+        for _, digimon in ipairs(digimonOptions[selectedBoss]) do
+            if digimon ~= "ALL" and dropItems[digimon] then
+                for _, imageId in ipairs(dropItems[digimon]) do
+                    if not uniqueImages[imageId] then -- Se a imagem ainda não foi adicionada
+                        uniqueImages[imageId] = true
+                        table.insert(items, imageId)
+                    end
+                end
+            end
+        end
+    else
+        -- Caso contrário, pegar apenas os itens do Digimon específico sem repetir
+        if dropItems[selectedDigimon] then
+            for _, imageId in ipairs(dropItems[selectedDigimon]) do
+                if not uniqueImages[imageId] then
+                    uniqueImages[imageId] = true
+                    table.insert(items, imageId)
+                end
+            end
+        end
+    end
+
+    -- Criar novos ícones de item
+    for _, imageId in ipairs(items) do
+        local img = Instance.new("ImageLabel")
+        img.Size = UDim2.new(0, iconSize, 0, iconSize) -- Agora as imagens são fixas em 50x50 pixels
+        img.BackgroundTransparency = 1
+        img.Image = imageId
+        img.Parent = dropFrame
+    end
+
+    -- Ajustar a rolagem corretamente para garantir que todas as imagens fiquem acessíveis
+    local itemCount = #items
+    local totalWidth = (iconSize + padding) * itemCount -- Largura total necessária
+
+    -- Ajustar o CanvasSize corretamente para rolar apenas se necessário
+    dropFrame.CanvasSize = UDim2.new(0, totalWidth, 1, 0)
+end
+
+-- Conectar a função ao dropdown de Digimon
+digimonDropdown.MouseButton1Click:Connect(function()
+    updateDrops(digimonDropdown.Name, farmBossDropdown.Name)
+end)
+-- After your existing dropdown creation code for digimonDropdown
+-- We need to modify how the event connections work to ensure drops update when selecting a Digimon
+
+-- First let's fix the existing connection that only triggers when clicking the dropdown
+digimonDropdown.MouseButton1Click:Connect(function()
+    -- This should be empty or just handle opening the dropdown
+    -- Don't call updateDrops here
+end)
+
+-- Modify the digimon option button creation to update drops when an option is selected
+local function updateDigimonDropdown(selectedBoss)
+    -- Get the digimon options for the selected boss location
+    local options = digimonOptions[selectedBoss] or digimonOptions["DEFAULT"]
+    
+    -- Clear current options in digimon dropdown
+    for _, child in pairs(digimonMenu:GetChildren()) do
+        if child:IsA("ScrollingFrame") then
+            for _, button in pairs(child:GetChildren()) do
+                if button:IsA("TextButton") then
+                    button:Destroy()
+                end
+            end
+            
+            -- Update canvas size
+            child.CanvasSize = UDim2.new(0, 0, 0, #options * DROPDOWN_ITEM_HEIGHT)
+            
+            -- Recreate option buttons
+            for i, option in ipairs(options) do
+                local btn = Instance.new("TextButton")
+                btn.Text = option
+                btn.Size = UDim2.new(1, -SCROLLBAR_OFFSET, 0, DROPDOWN_ITEM_HEIGHT - 5)
+                btn.Position = UDim2.new(0, 5, 0, (i-1)*DROPDOWN_ITEM_HEIGHT)
+                btn.BackgroundColor3 = Color3.fromRGB(0,0,0) -- Dark background
+                btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                btn.TextSize = 14
+                btn.Font = Enum.Font.GothamSemibold
+                btn.ZIndex = 10
+                btn.Parent = child
+                
+                local btnCorner = Instance.new("UICorner", btn)
+                btnCorner.CornerRadius = UDim.new(0, 6)
+                
+                -- Store the real value
+                btn.Name = option
+                
+                btn.MouseButton1Click:Connect(function()
+                    digimonDropdown.Text = btn.Text
+                    digimonDropdown.Name = option
+                    digimonMenu.Visible = false
+                    
+                    -- This is the key change - update drops immediately when a Digimon is selected
+                    updateDrops(option, farmBossDropdown.Name)
+                end)
+            end
+        end
+    end
+    
+    -- Reset the digimon dropdown text
+    digimonDropdown.Text = "SELECT DIGIMON"
+    digimonDropdown.Name = "SELECT DIGIMON"
+    
+    -- When changing boss, we should also reset the drops display
+    updateDrops("SELECT DIGIMON", selectedBoss)
+end
+
+-- Also ensure the boss dropdown selection updates both the Digimon list and clears the drops
+for _, child in pairs(bossMenu:GetChildren()) do
+    if child:IsA("ScrollingFrame") then
+        for _, btn in pairs(child:GetChildren()) do
+            if btn:IsA("TextButton") then
+                -- Modify existing click events to also update the drops view
+                btn.MouseButton1Click:Connect(function()
+                    local selectedBoss = btn.Name
+                    updateDigimonDropdown(selectedBoss)
+                    -- We already call updateDrops in updateDigimonDropdown, so no need to call it again here
+                end)
+            end
+        end
+    end
+end
+
+-- Monitor changes to the boss dropdown selection
+local function monitorBossSelection()
+    while true do
+        local currentSelection = farmBossDropdown.Name
+        if currentSelection ~= "CHOOSE A MAP" and currentSelection ~= lastBossSelection then
+            lastBossSelection = currentSelection
+            updateDigimonDropdown(currentSelection)
+        end
+        wait(0.1) -- Small delay to prevent excessive checking
+    end
+end
+
+-- Initialize the lastBossSelection variable
+local lastBossSelection = "CHOOSE A MAP"
+
+-- Start monitoring for changes
+spawn(monitorBossSelection)
+
+-- Alternatively, you can modify the createDropdown function to add a callback
+-- Here's a simpler solution if you prefer not to use the monitoring approach:
+
+-- Connect to each boss option directly in the createDropdown function
+-- Add this code after the btn.MouseButton1Click:Connect block in your original createDropdown function
+-- where it creates buttons for the boss dropdown:
+
+for i, option in ipairs(bossOptions) do
+    -- Find the button in the scroll frame
+    for _, child in pairs(bossMenu:GetChildren()) do
+        if child:IsA("ScrollingFrame") then
+            for _, btn in pairs(child:GetChildren()) do
+                if btn:IsA("TextButton") and btn.Name == option then
+                    -- Add an additional callback to update digimon dropdown
+                    local originalCallback = btn.MouseButton1Click:Connect(function() end)
+                    btn.MouseButton1Click:Connect(function()
+                        updateDigimonDropdown(option)
+                    end)
+                end
+            end
+        end
+    end
+end
+
+
+-- Botões para a Página 2
+local runButtonBoss = createStyledButton("RUN FARM", Color3.fromRGB(217, 70, 239), 0.025, 1.05, pageBoss) -- Botão Pink
+local stopButtonBoss = createStyledButton("STOP FARM", Color3.fromRGB(168, 85, 247), 0.525, 1.05, pageBoss) -- Botão Roxo
+
+
+-- Função para criar checkboxes personalizadas
+local function createStyledCheckbox(text, x, y, parent)
+    local checkboxContainer = Instance.new("Frame")
+    checkboxContainer.Size = UDim2.new(0.9, 0, 0, 30)
+    checkboxContainer.Position = UDim2.new(x, 0, y, 0)
+    checkboxContainer.BackgroundTransparency = 1
+    checkboxContainer.Parent = parent
+    
+    local checkbox = Instance.new("TextButton")
+    checkbox.Size = UDim2.new(0, 22, 0, 22)
+    checkbox.Position = UDim2.new(0, 0, 0.5, -11)
+    checkbox.BackgroundColor3 = Color3.fromRGB(139, 92, 246) -- Light purple for checkbox
+    checkbox.Text = ""
+    checkbox.Parent = checkboxContainer
+    
+    local checkboxCorner = Instance.new("UICorner", checkbox)
+    checkboxCorner.CornerRadius = UDim.new(0, 4)
+    
+    local checkmark = Instance.new("TextLabel")
+    checkmark.Text = "✓"
+    checkmark.Size = UDim2.new(1, 0, 1, 0)
+    checkmark.BackgroundTransparency = 1
+    checkmark.TextColor3 = Color3.fromRGB(255, 255, 255)
+    checkmark.TextSize = 16
+    checkmark.Font = Enum.Font.GothamBold
+    checkmark.Visible = false
+    checkmark.Parent = checkbox
+    
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(1, -30, 1, 0)
+    label.Position = UDim2.new(0, 30, 0, 0)
+    label.TextColor3 = Color3.fromRGB(240, 240, 240)
+    label.TextSize = 14
+    label.Font = Enum.Font.GothamSemibold
+    label.BackgroundTransparency = 1
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = checkboxContainer
+    
+    -- Variável local para controlar o estado da checkbox
+    local isChecked = false
+    checkbox.MouseButton1Click:Connect(function()
+        isChecked = not isChecked  -- Alterna o estado da checkbox
+        checkmark.Visible = isChecked  -- Exibe o checkmark se marcado
+        -- Alteração de cor do botão conforme o estado
+        if isChecked then
+            TweenService:Create(checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Bright pink when checked
+        else
+            TweenService:Create(checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(139, 92, 246)}):Play() -- Light purple when unchecked
+        end
+    end)
+
+    -- Retorna tanto a checkbox quanto o label, além do estado 'isChecked' e uma função para resetar a checkbox
+    return checkbox, label, function() return isChecked end, function()
+        -- Resetando o estado da checkbox para desmarcada
+        isChecked = false
+        checkmark.Visible = false
+        TweenService:Create(checkbox, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(139, 92, 246)}):Play() -- Cor original
+    end
+end
+
+-- Página 3: Configuração
 local configLabel = Instance.new("TextLabel")
-configLabel.Text = "SECURITY:"
-configLabel.Size = UDim2.new(1, -20, 0, 25)
-configLabel.Position = UDim2.new(0, 10, 0, 10)
-configLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+configLabel.Text = "SAFE MODE"
+configLabel.Size = UDim2.new(1, 0, 0, 25)
+configLabel.Position = UDim2.new(0, 0, 0, 10)
+configLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+configLabel.TextSize = 18
+configLabel.Font = Enum.Font.GothamSemibold
 configLabel.BackgroundTransparency = 1
-configLabel.Visible = false
-configLabel.Parent = frame
-
+configLabel.Parent = pageConfig
 
 -- Checkboxes
-local checkbox1 = Instance.new("TextButton")
-checkbox1.Size = UDim2.new(0, 25, 0, 25)
-checkbox1.Position = UDim2.new(0.2, 0, 0.3, 0)
-checkbox1.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-checkbox1.Text = ""
-checkbox1.Parent = frame
-checkbox1.Visible = false
+local checkbox1, checkbox1Label, getCheckbox1State, resetCheckbox1 = createStyledCheckbox("Anti-Moderator", 0.05, 0.2, pageConfig)
+local checkbox2, checkbox2Label, getCheckbox2State, resetCheckbox2 = createStyledCheckbox("(TELEPORT) Server 0 Players", 0.05, 0.35, pageConfig)
+local checkbox3, checkbox3Label, getCheckbox3State, resetCheckbox3 = createStyledCheckbox("+ FPS (Remove Textures)", 0.05, 0.50, pageConfig)
 
-local checkbox1Label = Instance.new("TextLabel")
-checkbox1Label.Text = "Anti-Moderator"
-checkbox1Label.Size = UDim2.new(0, 100, 0, 20)
-checkbox1Label.Position = UDim2.new(0.2, 30, 0.3, 0)
-checkbox1Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-checkbox1Label.BackgroundTransparency = 1
-checkbox1Label.Parent = frame
-checkbox1Label.Visible = false
+-- dropview para escolher o ovo
+local eggsLabel = Instance.new("TextLabel")
+digimonFilterLabel.Text = "EXTRAS"
+digimonFilterLabel.Size = UDim2.new(1, 0, 0, 25)
+digimonFilterLabel.Position = UDim2.new(0, 0, 0, 135) -- Posição abaixo do primeiro dropdown
+digimonFilterLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+digimonFilterLabel.TextSize = 18
+digimonFilterLabel.Font = Enum.Font.GothamSemibold
+digimonFilterLabel.BackgroundTransparency = 1
+digimonFilterLabel.Parent = pageConfig
 
-local checkbox2 = Instance.new("TextButton")
-checkbox2.Size = UDim2.new(0, 25, 0, 25)
-checkbox2.Position = UDim2.new(0.2, 0, 0.5, 0)
-checkbox2.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-checkbox2.Text = ""
-checkbox2.Parent = frame
-checkbox2.Visible = false
 
-local checkbox2Label = Instance.new("TextLabel")
-checkbox2Label.Text = "Low Players Server"
-checkbox2Label.Size = UDim2.new(0, 100, 0, 20)
-checkbox2Label.Position = UDim2.new(0.2, 30, 0.5, 0)
-checkbox2Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-checkbox2Label.BackgroundTransparency = 1
-checkbox2Label.Parent = frame
-checkbox2Label.Visible = false
+-- Opções de eggs
+local eggsOptions = {"HATCH EGG", "CLONE", "OPEN BOX"}
+local eggsLabels = {"HATCH EGG", "CLONE", "OPEN BOX"}
+local eggsDropdown, eggsMenu = createDropdown(pageConfig, eggsOptions, eggsLabels, "CHOOSE", "CHOOSE", 155)
 
--- Botões Página 3
-local runButtonConfig = Instance.new("TextButton")
-runButtonConfig.Text = "RUN CONFIG"
-runButtonConfig.Size = UDim2.new(0.45, 0, 0, 40)
-runButtonConfig.Position = UDim2.new(0.025, 0, 1, -50)
-runButtonConfig.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-runButtonConfig.TextColor3 = Color3.fromRGB(255, 255, 255)
-runButtonConfig.Visible = false
-runButtonConfig.Parent = frame
+-- Botões da Página 3
+local runButtonConfig = createStyledButton("RUN CONFIG", Color3.fromRGB(217, 70, 239), 0.025, 1, pageConfig) -- Botão Rosa
+local stopButtonConfig = createStyledButton("STOP CONFIG", Color3.fromRGB(168, 85, 247), 0.525, 1, pageConfig) -- Botão Roxo
 
-local stopButtonConfig = Instance.new("TextButton")
-stopButtonConfig.Text = "STOP CONFIG"
-stopButtonConfig.Size = UDim2.new(0.45, 0, 0, 40)
-stopButtonConfig.Position = UDim2.new(0.525, 0, 1, -50)
-stopButtonConfig.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-stopButtonConfig.TextColor3 = Color3.fromRGB(255, 255, 255)
-stopButtonConfig.Visible = false
-stopButtonConfig.Parent = frame
 
--- Página 4: Teleport (NOVA)
+-- Page 4: Teleport
 local teleportLabel = Instance.new("TextLabel")
-teleportLabel.Text = "TELEPORT: (NO LEVEL)"
-teleportLabel.Size = UDim2.new(1, -20, 0, 25)
-teleportLabel.Position = UDim2.new(0, 10, 0, 10)
-teleportLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+teleportLabel.Text = "TRAVEL"
+teleportLabel.Size = UDim2.new(1, 0, 0, 25)
+teleportLabel.Position = UDim2.new(0, 0, 0, 10)
+teleportLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+teleportLabel.TextSize = 14
+teleportLabel.Font = Enum.Font.GothamSemibold
 teleportLabel.BackgroundTransparency = 1
-teleportLabel.Visible = false
-teleportLabel.Parent = frame
+teleportLabel.Parent = pageTeleport
 
--- Dropdown para locais de teleporte
-local teleportOptions = {"Gear Savannah(FREE)", "Infinity Mountain(FREE)"}
-local teleportValues = {"92975923292118", "138083468820287"} -- Valores reais por trás das opções
-local teleportDropdown, teleportMenu = createDropdown(frame, teleportValues, teleportOptions, "11", "Gear Savannah", 50)
-teleportDropdown.Visible = false
-teleportMenu.Visible = false
+-- Dropdown for teleport locations
+local teleportOptions = {"Gear Savannah", "Infinity Mountain"}
+local teleportValues = {"92975923292118", "138083468820287"}
+local teleportDropdown, teleportMenu = createDropdown(pageTeleport, teleportValues, teleportOptions, "11", "CHOOSE MAP TO TELEPORT", 40)
 
--- Botão para teleportar
+-- Button for teleporting
 local teleportButton = Instance.new("TextButton")
 teleportButton.Text = "TELEPORT"
-teleportButton.Size = UDim2.new(0.8, 0, 0, 40)
-teleportButton.Position = UDim2.new(0.1, 0, 0.65, 0)
-teleportButton.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+teleportButton.Size = UDim2.new(0.9, 0, 0, 40)
+teleportButton.Position = UDim2.new(0.05, 0, 0.4, 0)
+teleportButton.BackgroundColor3 = Color3.fromRGB(217, 70, 239) -- Pink for teleport button
 teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-teleportButton.Visible = false
-teleportButton.Parent = frame
+teleportButton.TextSize = 14
+teleportButton.Font = Enum.Font.GothamBold
+teleportButton.Parent = pageTeleport
 
--- Navegação
-local nextPageButton = Instance.new("TextButton")
-nextPageButton.Text = "▶"
-nextPageButton.Size = UDim2.new(0, 30, 0, 30)
-nextPageButton.Position = UDim2.new(1, -35, 0, 5)
-nextPageButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-nextPageButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-nextPageButton.Parent = frame
+local teleportButtonCorner = Instance.new("UICorner", teleportButton)
+teleportButtonCorner.CornerRadius = UDim.new(0, 8)
 
-local prevPageButton = Instance.new("TextButton")
-prevPageButton.Text = "◀"
-prevPageButton.Size = UDim2.new(0, 30, 0, 30)
-prevPageButton.Position = UDim2.new(0, 5, 0, 5)
-prevPageButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-prevPageButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-prevPageButton.Visible = false
-prevPageButton.Parent = frame
+-- Hover effect for teleport button
+teleportButton.MouseEnter:Connect(function()
+    TweenService:Create(teleportButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(232, 121, 249)}):Play() -- Lighter pink on hover
+end)
 
--- Sistema de Páginas
+teleportButton.MouseLeave:Connect(function()
+    TweenService:Create(teleportButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
+end)
+
+-- Tab navigation system
 local currentPage = 1
 
-local function switchPage(newPage)
-    -- Fecha qualquer menu de dropdown que esteja aberto
+-- Update the tab switching function to also change the color of icons and labels
+local function switchTab(newTab)
+    -- Close any open dropdown menus
     skillMenu.Visible = false
     bossMenu.Visible = false
     teleportMenu.Visible = false
-
-    currentPage = newPage
-
-    -- Página 1: Skills
-    skillLabel.Visible = (currentPage == 1)
-    skillDropdown.Visible = (currentPage == 1)
-    runButtonSkill.Visible = (currentPage == 1)
-    stopButtonSkill.Visible = (currentPage == 1)
-
-    -- Página 2: Boss
-    farmBossLabel.Visible = (currentPage == 2)
-    farmBossDropdown.Visible = (currentPage == 2)
-    runButtonBoss.Visible = (currentPage == 2)
-    stopButtonBoss.Visible = (currentPage == 2)
-
-    -- Página 3: Configurações
-    configLabel.Visible = (currentPage == 3)
-    checkbox1.Visible = (currentPage == 3)
-    checkbox1Label.Visible = (currentPage == 3)
-    checkbox2.Visible = (currentPage == 3)
-    checkbox2Label.Visible = (currentPage == 3)
-    runButtonConfig.Visible = (currentPage == 3)
-    stopButtonConfig.Visible = (currentPage == 3)
     
-    -- Página 4: Teleport (NOVA)
-    teleportLabel.Visible = (currentPage == 4)
-    teleportDropdown.Visible = (currentPage == 4)
-    teleportButton.Visible = (currentPage == 4)
-
-    -- Configurações de navegação
-    prevPageButton.Visible = (currentPage > 1)
-    nextPageButton.Visible = (currentPage < 4) -- Atualizado para 4 páginas
-
-    frame.Size = UDim2.new(0, 280, 0, 220)
+    -- Unhighlight all tabs and make icons slightly transparent
+    tabSkills.BackgroundColor3 = Color3.fromRGB(43, 0, 87)
+    skillsLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    skillsIcon.ImageTransparency = 0.2
+    
+    tabBoss.BackgroundColor3 = Color3.fromRGB(43, 0, 87)
+    bossLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    bossIcon.ImageTransparency = 0.2
+    
+    tabConfig.BackgroundColor3 = Color3.fromRGB(43, 0, 87)
+    configLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    configIcon.ImageTransparency = 0.2
+    
+    tabTeleport.BackgroundColor3 = Color3.fromRGB(43, 0, 87)
+    teleportLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    teleportIcon.ImageTransparency = 0.2
+    
+    -- Hide all pages
+    pageSkills.Visible = false
+    pageBoss.Visible = false
+    pageConfig.Visible = false
+    pageTeleport.Visible = false
+    
+    -- Show selected tab and page with full opacity icon
+    if newTab == 1 then
+        pageSkills.Visible = true
+        tabSkills.BackgroundColor3 = Color3.fromRGB(217, 70, 239)
+        skillsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        skillsIcon.ImageTransparency = 0
+    elseif newTab == 2 then
+        pageBoss.Visible = true
+        tabBoss.BackgroundColor3 = Color3.fromRGB(217, 70, 239)
+        bossLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        bossIcon.ImageTransparency = 0
+    elseif newTab == 3 then
+        pageConfig.Visible = true
+        tabConfig.BackgroundColor3 = Color3.fromRGB(217, 70, 239)
+        configLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        configIcon.ImageTransparency = 0
+    elseif newTab == 4 then
+        pageTeleport.Visible = true
+        tabTeleport.BackgroundColor3 = Color3.fromRGB(217, 70, 239)
+        teleportLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        teleportIcon.ImageTransparency = 0
+    end
+    
+    currentPage = newTab
 end
 
-nextPageButton.MouseButton1Click:Connect(function()
-    if currentPage < 4 then -- Atualizado para 4 páginas
-        switchPage(currentPage + 1)
-    end
+-- Tab button click connections
+tabSkills.MouseButton1Click:Connect(function()
+    switchTab(1)
 end)
 
-prevPageButton.MouseButton1Click:Connect(function()
-    if currentPage > 1 then
-        switchPage(currentPage - 1)
-    end
+tabBoss.MouseButton1Click:Connect(function()
+    switchTab(2)
 end)
 
--- Sistema de Arrastar GUI
+tabConfig.MouseButton1Click:Connect(function()
+    switchTab(3)
+end)
+
+tabTeleport.MouseButton1Click:Connect(function()
+    switchTab(4)
+end)
+
+-- Close button functionality
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+-- GUI drag system
 local dragging, dragInput, dragStart, startPos
 
 local function update(input)
     local delta = input.Position - dragStart
-    frame.Position = UDim2.new(
+    mainFrame.Position = UDim2.new(
         startPos.X.Scale,
         startPos.X.Offset + delta.X,
         startPos.Y.Scale,
@@ -365,12 +1039,12 @@ local function update(input)
     )
 end
 
-frame.InputBegan:Connect(function(input)
+titleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
-        startPos = frame.Position
-
+        startPos = mainFrame.Position
+        
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
@@ -379,7 +1053,7 @@ frame.InputBegan:Connect(function(input)
     end
 end)
 
-frame.InputChanged:Connect(function(input)
+titleBar.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         dragInput = input
     end
@@ -391,61 +1065,391 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Sistema de Checkboxes
-local checkStates = {teste1 = false, teste2 = false}
-
-checkbox1.MouseButton1Click:Connect(function()
-    checkStates.teste1 = not checkStates.teste1
-    checkbox1.BackgroundColor3 = checkStates.teste1 and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(60, 60, 60)
+-- Animation for minimizing
+minimizeButton.MouseButton1Click:Connect(function()
+    -- Save current position before minimizing
+    originalPosition = mainFrame.Position
+    
+    -- Tween to minimize
+    local minimizeTween = TweenService:Create(
+        mainFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+        {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.9, 0, 0.9, 0) -- Same position where maximize button will appear
+        }
+    )
+    
+    minimizeTween.Completed:Connect(function()
+        mainFrame.Visible = false
+        maximizeButton.Visible = true
+        
+        -- Add a subtle bounce effect when the maximize button appears
+        maximizeButton.Size = UDim2.new(0, 40, 0, 40) -- Start smaller
+        local bounceTween = TweenService:Create(
+            maximizeButton,
+            TweenInfo.new(0.3, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 50, 0, 50)} -- Grow to full size
+        )
+        bounceTween:Play()
+    end)
+    
+    minimizeTween:Play()
 end)
 
-checkbox2.MouseButton1Click:Connect(function()
-    checkStates.teste2 = not checkStates.teste2
-    checkbox2.BackgroundColor3 = checkStates.teste2 and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(60, 60, 60)
+-- Animation for maximizing
+maximizeButton.MouseButton1Click:Connect(function()
+    maximizeButton.Visible = false
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    mainFrame.Position = UDim2.new(0.9, 0, 0.9, 0)
+    
+    -- Tween to maximize
+    local maximizeTween = TweenService:Create(
+        mainFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {
+            Size = originalSize,
+            Position = originalPosition
+        }
+    )
+    
+    maximizeTween:Play()
 end)
 
--- Função de utilidade para gerar IDs únicos
-function generateUniqueID()
-    return tostring(math.random(1000000000000000, 9999999999999999)) .. "." .. tostring(math.random())
+-- Make maximizeButton draggable
+local dragMaximize, dragMaximizeInput, dragMaximizeStart, startMaximizePos
+
+local function updateMaximizePosition(input)
+    local delta = input.Position - dragMaximizeStart
+    maximizeButton.Position = UDim2.new(
+        startMaximizePos.X.Scale,
+        startMaximizePos.X.Offset + delta.X,
+        startMaximizePos.Y.Scale,
+        startMaximizePos.Y.Offset + delta.Y
+    )
+end
+
+maximizeButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragMaximize = true
+        dragMaximizeStart = input.Position
+        startMaximizePos = maximizeButton.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragMaximize = false
+            end
+        end)
+    end
+end)
+
+maximizeButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragMaximizeInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragMaximizeInput and dragMaximize then
+        updateMaximizePosition(input)
+    end
+end)
+
+-- Add hover effects
+minimizeButton.MouseEnter:Connect(function()
+    TweenService:Create(minimizeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(192, 132, 252)}):Play()
+end)
+
+minimizeButton.MouseLeave:Connect(function()
+    TweenService:Create(minimizeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(168, 85, 247)}):Play()
+end)
+
+maximizeButton.MouseEnter:Connect(function()
+    TweenService:Create(maximizeButton, TweenInfo.new(0.2), {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+maximizeButton.MouseLeave:Connect(function()
+    TweenService:Create(maximizeButton, TweenInfo.new(0.2), {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+
+-- Add hover effects for tab buttons
+tabSkills.MouseEnter:Connect(function()
+    TweenService:Create(tabSkills, TweenInfo.new(0.2), {Size = UDim2.new(tabSkills.Size.X.Scale * 1.05, tabSkills.Size.X.Offset, tabSkills.Size.Y.Scale, tabSkills.Size.Y.Offset + 2)}):Play()
+end)
+
+tabSkills.MouseLeave:Connect(function()
+    TweenService:Create(tabSkills, TweenInfo.new(0.2), {Size = UDim2.new(1/4, -5, 1, 0)}):Play()
+end)
+
+tabBoss.MouseEnter:Connect(function()
+    TweenService:Create(tabBoss, TweenInfo.new(0.2), {Size = UDim2.new(tabBoss.Size.X.Scale * 1.05, tabBoss.Size.X.Offset, tabBoss.Size.Y.Scale, tabBoss.Size.Y.Offset + 2)}):Play()
+end)
+
+tabBoss.MouseLeave:Connect(function()
+    TweenService:Create(tabBoss, TweenInfo.new(0.2), {Size = UDim2.new(1/4, -5, 1, 0)}):Play()
+end)
+
+tabConfig.MouseEnter:Connect(function()
+    TweenService:Create(tabConfig, TweenInfo.new(0.2), {Size = UDim2.new(tabConfig.Size.X.Scale * 1.05, tabConfig.Size.X.Offset, tabConfig.Size.Y.Scale, tabConfig.Size.Y.Offset + 2)}):Play()
+end)
+
+tabConfig.MouseLeave:Connect(function()
+    TweenService:Create(tabConfig, TweenInfo.new(0.2), {Size = UDim2.new(1/4, -5, 1, 0)}):Play()
+end)
+
+tabTeleport.MouseEnter:Connect(function()
+    TweenService:Create(tabTeleport, TweenInfo.new(0.2), {Size = UDim2.new(tabTeleport.Size.X.Scale * 1.05, tabTeleport.Size.X.Offset, tabTeleport.Size.Y.Scale, tabTeleport.Size.Y.Offset + 2)}):Play()
+end)
+
+tabTeleport.MouseLeave:Connect(function()
+    TweenService:Create(tabTeleport, TweenInfo.new(0.2), {Size = UDim2.new(1/4, -5, 1, 0)}):Play()
+end)
+
+-- SKILL E FUNCIONALIDADES DOS BOTOES
+
+-- Função para criar mensagem de erro animada
+function CreateErrorMessage(message)
+    -- Criar a GUI de erro no CoreGui
+    local errorGui = Instance.new("ScreenGui")
+    errorGui.Name = "ErrorMessageGui"
+    errorGui.Parent = CoreGui
+    
+    -- Criar o frame principal
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "ErrorFrame"
+    mainFrame.Size = UDim2.new(0, 300, 0, 150)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.BackgroundTransparency = 0.2
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Parent = errorGui
+    
+    -- Arredondar as bordas do frame
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 10)
+    UICorner.Parent = mainFrame
+    
+    -- Criar o texto de erro
+    local errorText = Instance.new("TextLabel")
+    errorText.Name = "ErrorText"
+    errorText.Size = UDim2.new(1, -20, 0.7, 0)
+    errorText.Position = UDim2.new(0, 10, 0, 10)
+    errorText.BackgroundTransparency = 1
+    errorText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    errorText.TextSize = 24
+    errorText.Font = Enum.Font.SourceSansBold
+    errorText.Text = message
+    errorText.TextWrapped = true
+    errorText.Parent = mainFrame
+    
+    -- Criar botão de fechar
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0.5, 0, 0.2, 0)
+    closeButton.Position = UDim2.new(0.25, 0, 0.75, 0)
+    closeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    closeButton.BorderSizePixel = 0
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextSize = 18
+    closeButton.Font = Enum.Font.SourceSansBold
+    closeButton.Text = "FECHAR"
+    closeButton.Parent = mainFrame
+    
+    -- Arredondar as bordas do botão
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = closeButton
+    
+    -- Animação de entrada (desliza de cima para o centro)
+    mainFrame.Position = UDim2.new(0.5, 0, -0.5, 0)
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Bounce)
+    local tween = TweenService:Create(mainFrame, tweenInfo, {Position = UDim2.new(0.5, 0, 0.5, 0)})
+    tween:Play()
+    
+    -- Configurar o botão de fechar
+    closeButton.MouseButton1Click:Connect(function()
+        -- Animação de saída (desliza para baixo)
+        local exitTween = TweenService:Create(
+            mainFrame,
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Position = UDim2.new(0.5, 0, 1.5, 0)}
+        )
+        exitTween:Play()
+        
+        -- Remove a GUI depois da animação
+        exitTween.Completed:Connect(function()
+            errorGui:Destroy()
+        end)
+    end)
+    
+    -- Efeito hover no botão
+    closeButton.MouseEnter:Connect(function()
+        TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 80, 80)}):Play()
+    end)
+    
+    closeButton.MouseLeave:Connect(function()
+        TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+    end)
+end
+
+-- Testar a função
+CreateErrorMessage("Erro ao carregar os dados!")
+
+
+-- Função para verificar se o Digimon possui a skill selecionada
+function VerifySkill(skillName)
+    -- Busca o personagem do jogador
+    local character = game.Workspace:FindFirstChild(player.Name)
+    if not character then
+        warn("Character not found!")
+        CreateErrorMessage("PERSONAGEM NÃO ENCONTRADO!")
+        return false
+    end
+    
+    -- Verifica se o caminho para a pasta de skills existe
+    if not character:FindFirstChild("HumanoidRootPart") or 
+       not character.HumanoidRootPart:FindFirstChild("pet1") or 
+       not character.HumanoidRootPart.pet1:FindFirstChild("Skills") then
+        warn("Path to Skills folder is invalid!")
+        CreateErrorMessage("CAMINHO PARA PASTA DE SKILLS INVÁLIDO!")
+        return false
+    end
+    
+    local skillFolder = character.HumanoidRootPart.pet1.Skills
+    print("pasta skills encontrada")
+    
+    -- Verifica se a skill existe na pasta
+    if not skillFolder:FindFirstChild(skillName) then
+        warn("Skill " .. skillName .. " não encontrada!")
+        CreateErrorMessage("SEU DIGIMON NÃO TEM ESSA SKILL :(")
+        return false
+    end
+    
+    -- Verifica se o valor da skill não é 0 (string)
+    local skillValue = skillFolder[skillName].Value
+    print(skillValue)
+    
+    if skillValue == "0" then
+        print("SKILL VALOR 0 MANDANDO ERRO")
+        CreateErrorMessage("SEU DIGIMON NÃO TEM ESSA SKILL :(")
+        return false
+    end
+    
+    -- Se chegou até aqui, a skill existe e está ativa
+    print("SKILL ENCONTRADA RETORNANDO TRUE")
+    return true
+end
+
+-- Função para verificar se o Digimon possui a skill selecionada
+function VerifySkill(skillName)
+    -- Busca o personagem do jogador
+    local character = game.Workspace:FindFirstChild(player.Name)
+    if not character then
+        warn("Character not found!")
+        CreateErrorMessage("PERSONAGEM NÃO ENCONTRADO!")
+        return false
+    end
+    
+    -- Verifica se o caminho para a pasta de skills existe
+    if not character:FindFirstChild("HumanoidRootPart") or 
+       not character.HumanoidRootPart:FindFirstChild("pet1") or 
+       not character.HumanoidRootPart.pet1:FindFirstChild("Skills") then
+        warn("Path to Skills folder is invalid!")
+        CreateErrorMessage("CAMINHO PARA PASTA DE SKILLS INVÁLIDO!")
+        return false
+    end
+    
+    local skillFolder = character.HumanoidRootPart.pet1.Skills
+    print("pasta skills encontrada")
+    
+    -- Verifica se a skill existe na pasta
+    if not skillFolder:FindFirstChild(skillName) then
+        warn("Skill " .. skillName .. " não encontrada!")
+        CreateErrorMessage("SEU DIGIMON NÃO TEM ESSA SKILL :(")
+        return false
+    end
+    
+    -- Verifica se o valor da skill não é 0 (string)
+    local skillValue = skillFolder[skillName].Value
+    print(skillValue)
+    
+    if skillValue == "0" then
+        print("SKILL VALOR 0 MANDANDO ERRO")
+        CreateErrorMessage("SEU DIGIMON NÃO TEM ESSA SKILL :(")
+        return false
+    end
+    skillValueImage = skillFolder[skillName]:FindFirstChild("SkillImage").Value
+	print(skillValueImage)
+	skillImage.Image = skillValueImage
+    -- Se chegou até aqui, a skill existe e está ativa
+    print("SKILL ENCONTRADA RETORNANDO TRUE")
+    return true
 end
 
 --------------------------------------------------
 -- FUNCIONALIDADE: SISTEMA DE SKILLS (PÁGINA 1) --
 --------------------------------------------------
 
+
 -- Variáveis de controle para o sistema de skills
 local isFiringSkill = false
+local debounceRunSkill = false
+local debounceStopSkill = false
+local currentSkill = nil  -- Mantém controle da skill ativa
+local tweenRunning = false  -- Impede múltiplas animações no botão RUN
+
+-- Função para gerar ID único (assumindo que esta função existe no código original)
+local function generateUniqueID()
+    return math.random(1000000, 9999999)
+end
 
 -- Função para iniciar o uso da skill selecionada
 function startFiringSkill()
     if debounceRunSkill then return end
     debounceRunSkill = true
-    
-    if isFiringSkill then
+
+    local skillName = skillDropdown.Name  -- Obtém o nome real da skill
+
+    -- Se já estiver executando a mesma skill, apenas sai da função
+    if isFiringSkill and skillName == currentSkill then
         debounceRunSkill = false
         return
     end
-    
+
+    -- Se houver uma skill ativa diferente, interrompe a execução da antiga
+    if isFiringSkill and skillName ~= currentSkill then
+        stopFiringSkill(true)  -- Reseta tudo antes de iniciar a nova skill
+    end
+
+    -- Atualiza a skill ativa
+    currentSkill = skillName
     isFiringSkill = true
-    
-    -- Obtém o valor real da skill selecionada (não o texto mostrado)
-    local skillName = skillDropdown.Name
-    
-    print("Skill selecionada para executar: " .. skillName)
-    
-    -- Busca o RemoteEvent correto com base no nome da skill
+
+    -- Verifica se a skill está disponível
+    if not VerifySkill(skillName) then
+        isFiringSkill = false
+        debounceRunSkill = false
+        return
+    end
+
+    print("Skill ativada: " .. skillName)
+
+    -- Busca o RemoteEvent correto
     local Remote = player:FindFirstChild("PlayerGui")
         and player.PlayerGui:FindFirstChild("CombatClient")
         and player.PlayerGui.CombatClient:FindFirstChild(skillName)
 
     if not Remote then
         warn("RemoteEvent não encontrado para a skill: " .. skillName)
-        debounceRunSkill = false
         isFiringSkill = false
+        debounceRunSkill = false
         return
     end
-
-    -- Inicia o loop de execução da skill
+	print("iniciando skill infinita")
+    -- Inicia a execução contínua da skill
     task.spawn(function()
         while isFiringSkill do
             local args = {
@@ -455,25 +1459,40 @@ function startFiringSkill()
                 [4] = false
             }
             Remote:InvokeServer(unpack(args))
-            task.wait(0.1)
         end
         debounceRunSkill = false
     end)
 end
 
 -- Função para parar o uso da skill
-function stopFiringSkill()
+function stopFiringSkill(fromRun)
     if debounceStopSkill then return end
     debounceStopSkill = true
-    
+
     isFiringSkill = false
-    print("Parando execução da skill")
+    currentSkill = nil  -- Reseta a skill ativa
+
+    print("Execução de skill interrompida")
+
+	skillImage.Image = "rbxassetid://130707804189775"
+
+    -- Reseta a cor do botão RUN
+    TweenService:Create(runButtonSkill, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(168, 85, 247)}):Play()
+
+    -- Feedback visual para o botão STOP
+    if not fromRun then
+        TweenService:Create(stopButtonSkill, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play()
+        task.wait(0.5)
+        TweenService:Create(stopButtonSkill, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(168, 85, 247)}):Play()
+    end
+
+    task.wait(0.5)
     debounceStopSkill = false
 end
 
 -- Conectando os botões às funções
 runButtonSkill.MouseButton1Click:Connect(startFiringSkill)
-stopButtonSkill.MouseButton1Click:Connect(stopFiringSkill)
+stopButtonSkill.MouseButton1Click:Connect(function() stopFiringSkill(false) end)
 
 -------------------------------------------------
 -- FUNCIONALIDADE: SISTEMA DE BOSS (PÁGINA 2) --
@@ -481,149 +1500,188 @@ stopButtonSkill.MouseButton1Click:Connect(stopFiringSkill)
 -- Variáveis de controle para o sistema de boss
 local isFiringBoss = false
 local loadstringExecuted = {} -- Rastreia quais loadstrings já foram executados
-
+ 
 -- Função para iniciar o farm de boss selecionado
 function startFiringBoss()
     if debounceRunBoss then return end
     debounceRunBoss = true
-    
+ 
     if isFiringBoss then
         debounceRunBoss = false
         return
     end
-    
+ 
     isFiringBoss = true
-    
+ 
     -- Obtém o boss selecionado (não o texto mostrado)
-    local bossName = farmBossDropdown.Name
+    local selectedBoss = farmBossDropdown.Name
+ 
+    print("Boss selecionado para farm: " .. selectedBoss)
     
-    print("Boss selecionado para farm: " .. bossName)
+    -- Visual feedback for the button
+    TweenService:Create(runButtonBoss, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Green
     
     -- Loop de farm de boss
     task.spawn(function()
-        -- Executa o loadstring apenas uma vez por sessão de farming
-        if bossName == "Silver Lake" and not loadstringExecuted[bossName] then
-            -- Verificar se estamos na place correta
-            if game.PlaceId ~= 133649758958568 then
-                print("Você não está na place correta para farmar Silver Lake Boss")
-                isFiringBoss = false
-                debounceRunBoss = false
-                return
+        local success = pcall(function()
+            -- Executa o loadstring apenas uma vez por sessão de farming
+            if selectedBoss == "Silver Lake" and not loadstringExecuted[selectedBoss] then
+                -- Verificar se estamos na place correta
+                if game.PlaceId ~= 133649758958568 then
+                    print("Você não está na place correta para farmar Silver Lake Boss")
+                    isFiringBoss = false
+                    debounceRunBoss = false
+                    return
+                end
+     
+                -- Executa o script de farm via loadstring apenas uma vez
+                loadstringExecuted[selectedBoss] = true
+                loadstring(game:HttpGet("https://pastebin.com/raw/hzG9DrDY"))()
+                print("Script de farming para Silver Lake carregado")
+     
+            elseif selectedBoss == "Gear Savannah" and not loadstringExecuted[selectedBoss] then
+                -- Verificar se estamos na place correta para Gear Savannah
+                if game.PlaceId ~= 92975923292118 then
+                    print("Você não está na place correta para farmar Gear Savannah Boss")
+                    isFiringBoss = false
+                    debounceRunBoss = false
+                    return
+                end
+     
+                loadstringExecuted[selectedBoss] = true
+                loadstring(game:HttpGet("https://pastebin.com/raw/ZegfdpN6"))()
+     
+            elseif selectedBoss == "Infinity Mountain" and not loadstringExecuted[selectedBoss] then
+                if game.PlaceId ~= 138083468820287 then
+                    print("Você não está na place correta para farmar Gear Infinity Mountain Boss")
+                    isFiringBoss = false
+                    debounceRunBoss = false
+                    return
+                end
+     
+                loadstringExecuted[selectedBoss] = true
+                loadstring(game:HttpGet("https://pastebin.com/raw/Xt0uMQ2H"))()
+     
+            elseif selectedBoss == "Goblimon Dungeon" and not loadstringExecuted[selectedBoss] then
+                if game.PlaceId ~= 120958789962854 and game.PlaceId ~= 86392425558311 and game.PlaceId ~= 76011326497329 then
+                    print("Você nao esta dentro da dg do goblimon!")
+                    isFiringBoss = false
+                    debounceRunBoss = false
+                    return
+                end
+     
+                loadstringExecuted[selectedBoss] = true
+                loadstring(game:HttpGet("https://pastebin.com/raw/A5E91btk"))()
+     
+            elseif selectedBoss == "ColiseumF" and not loadstringExecuted[selectedBoss] then
+                if game.PlaceId ~= 80299472659017 then
+                    local TeleportService = game:GetService("TeleportService")
+                    local Players = game:GetService("Players")
+     
+                    local player = Players.LocalPlayer
+                    local placeId = 80299472659017
+     
+                    if player then
+                        TeleportService:Teleport(placeId, player)
+                        print("[CLIENT] Teleportando para a place:", placeId)
+                        return
+                    else
+                        warn("[CLIENT] Erro ao encontrar o jogador local!")
+                        return
+                    end
+                end
+     
+                loadstringExecuted[selectedBoss] = true
+                loadstring(game:HttpGet("https://pastebin.com/raw/U8fHjW0B"))()
+                -- Lógica para o boss Coliseum
+                print("Script de farming para Coliseum carregado")
+     
+            elseif selectedBoss == "ColiseumN" and not loadstringExecuted[selectedBoss] then
+                if game.PlaceId ~= 110577167676254 then
+                    local TeleportService = game:GetService("TeleportService")
+                    local Players = game:GetService("Players")
+     
+                    local player = Players.LocalPlayer
+                    local placeId = 110577167676254
+     
+                    if player then
+                        TeleportService:Teleport(placeId, player)
+                        print("[CLIENT] Teleportando para a place:", placeId)
+                        return
+                    else
+                        warn("[CLIENT] Erro ao encontrar o jogador local!")
+                        return
+                    end
+                end
+     
+                loadstringExecuted[selectedBoss] = true
+                loadstring(game:HttpGet("https://pastebin.com/raw/U8fHjW0B"))()
+                -- Lógica para o boss Coliseum
+                print("Script de farming para Coliseum-N carregado")
+            end       
+     
+            -- Loop para manter o farming ativo
+            while isFiringBoss do
+                -- Aqui podemos incluir qualquer lógica adicional que precise ser executada repetidamente
+                -- Por exemplo, verificações periódicas ou atualizações visuais
+                task.wait(1.0)
             end
-            
-            -- Executa o script de farm via loadstring apenas uma vez
-            loadstringExecuted[bossName] = true
-            loadstring(game:HttpGet("https://pastebin.com/raw/hzG9DrDY"))()
-            print("Script de farming para Silver Lake carregado")
+        end)
         
-        elseif bossName == "Gear Savannah" and not loadstringExecuted[bossName] then
-            -- Verificar se estamos na place correta para Gear Savannah
-            if game.PlaceId ~= 92975923292118 then
-                print("Você não está na place correta para farmar Gear Savannah Boss")
-                isFiringBoss = false
-                debounceRunBoss = false
-                return
-            end
-            
-            loadstringExecuted[bossName] = true
-            loadstring(game:HttpGet("https://pastebin.com/raw/ZegfdpN6"))()
-        
-        elseif bossName == "Infinity Mountain" and not loadstringExecuted[bossName] then
-            if game.PlaceId ~= 138083468820287 then
-                print("Você não está na place correta para farmar Gear Infinity Mountain Boss")
-                isFiringBoss = false
-                debounceRunBoss = false
-                return
-            end
- 
-            loadstringExecuted[bossName] = true
-            loadstring(game:HttpGet("https://pastebin.com/raw/Xt0uMQ2H"))()
-        
-        elseif bossName == "Goblimon Dungeon" and not loadstringExecuted[bossName] then
-			if game.PlaceId ~= 120958789962854 and game.PlaceId ~= 86392425558311 and game.PlaceId ~= 76011326497329 then
-				print("Você nao esta dentro da dg do goblimon!")
-				isFiringBoss = false
-				debounceRunBoss = false
-				return
-			end
-
-            loadstringExecuted[bossName] = true
-			loadstring(game:HttpGet("https://pastebin.com/raw/A5E91btk"))()
-	
-        elseif bossName == "ColiseumF" and not loadstringExecuted[bossName] then
-			if game.PlaceId ~= 80299472659017 then
-				local TeleportService = game:GetService("TeleportService")
-				local Players = game:GetService("Players")
-
-				local player = Players.LocalPlayer
-				local placeId = 80299472659017
-
-				if player then
-    				TeleportService:Teleport(placeId, player)
-    				print("[CLIENT] Teleportando para a place:", placeId)
-					return
-				else
-    				warn("[CLIENT] Erro ao encontrar o jogador local!")
-					return
-				end
-			end
-
-            loadstringExecuted[bossName] = true
-			loadstring(game:HttpGet("https://pastebin.com/raw/U8fHjW0B"))()
-            -- Lógica para o boss Coliseum
-            print("Script de farming para Coliseum carregado")
-
-        elseif bossName == "ColiseumN" and not loadstringExecuted[bossName] then
-			if game.PlaceId ~= 110577167676254 then
-				local TeleportService = game:GetService("TeleportService")
-				local Players = game:GetService("Players")
-
-				local player = Players.LocalPlayer
-				local placeId = 110577167676254
-
-				if player then
-    				TeleportService:Teleport(placeId, player)
-    				print("[CLIENT] Teleportando para a place:", placeId)
-					return
-				else
-    				warn("[CLIENT] Erro ao encontrar o jogador local!")
-					return
-				end
-			end
-
-            loadstringExecuted[bossName] = true
-			loadstring(game:HttpGet("https://pastebin.com/raw/U8fHjW0B"))()
-            -- Lógica para o boss Coliseum
-            print("Script de farming para Coliseum-N carregado")
-        end       
-
-        -- Loop para manter o farming ativo
-        while isFiringBoss do
-            -- Aqui podemos incluir qualquer lógica adicional que precise ser executada repetidamente
-            -- Por exemplo, verificações periódicas ou atualizações visuais
-            task.wait(1.0)
+        if not success then
+            -- Error feedback
+            TweenService:Create(runButtonBoss, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(239, 68, 68)}):Play() -- Red
+            wait(0.5)
         end
         
+        -- Reset button color after successful or failed attempt
+        TweenService:Create(runButtonBoss, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
         debounceRunBoss = false
     end)
 end
-
+ 
 -- Função para parar o farm de boss
 function stopFiringBoss()
     if debounceStopBoss then return end
     debounceStopBoss = true
-    
+ 
     -- Obtém o boss que estava sendo farmado
-    local bossName = farmBossDropdown.Name
+    local selectedBoss = farmBossDropdown.Name
     
-    -- Reseta o flag do loadstring para permitir que execute novamente
-    loadstringExecuted[bossName] = nil
+    -- Visual feedback for the button
+    TweenService:Create(stopButtonBoss, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Green
     
-    isFiringBoss = false
-    print("Parando farm de boss: " .. bossName)
+    local success = pcall(function()
+        -- Reseta o flag do loadstring para permitir que execute novamente
+        loadstringExecuted[selectedBoss] = nil
+     
+        isFiringBoss = false
+        print("Parando farm de boss: " .. selectedBoss)
+    end)
+    
+    if not success then
+        -- Error feedback
+        TweenService:Create(stopButtonBoss, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(239, 68, 68)}):Play() -- Red
+        wait(0.5)
+    end
+    
+    -- Reset button color
+    wait(0.5)
+    TweenService:Create(stopButtonBoss, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(168, 85, 247)}):Play() -- Back to purple
+    
+    -- Reset dropdowns to initial values
+    farmBossDropdown.Text = "CHOOSE A MAP"  -- Reset Boss dropdown
+    farmBossDropdown.Name = "CHOOSE A MAP"
+    
+    digimonDropdown.Text = "SELECT DIGIMON"  -- Reset Digimon dropdown
+    digimonDropdown.Name = "SELECT DIGIMON"
+    
+    -- Call updateDrops to reflect the reset state
+    updateDrops(digimonDropdown.Name, farmBossDropdown.Name)
+
     debounceStopBoss = false
 end
-
+ 
 -- Conectando os botões às funções
 runButtonBoss.MouseButton1Click:Connect(startFiringBoss)
 stopButtonBoss.MouseButton1Click:Connect(stopFiringBoss)
@@ -631,63 +1689,136 @@ stopButtonBoss.MouseButton1Click:Connect(stopFiringBoss)
 -----------------------------------------------------
 -- FUNCIONALIDADE: SISTEMA DE CONFIGURAÇÃO (PÁGINA 3) --
 -----------------------------------------------------
-
 -- Variáveis de controle para o sistema de configuração
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+-- variaveis para controlar o estado da funcionalidade
 local debounceRunConfig = false
 local debounceStopConfig = false
 local isFiringConfig = false
 local checkStates = {
-    antiModerator = false,  -- Alterado de teste1
-    lowPlayers = false      -- Alterado de teste2
+    antiModerator = false,
+    lowPlayers = false,
+	lowTexture = false
 }
+-- Variável para armazenar a seleção atual
+local currentEggSelection = "CHOOSE"
 
--- Lista de IDs de moderadores (adicione os IDs relevantes)
-local moderator_list = {
-    2551005924,  -- Exemplo 1
-    5119382479,  -- Exemplo 2
-    32717175,
-    65508361,
-    264394148,
-    461191071,
-    7769465364,
-    277175759,
-    1412329195,
-    1966856223,
-    111505379,
-    19537640,
-    419886014,
-    11057676,
-    1647462646,
-    88675896,
-    1680501146,
-    44451297
-}
+-- Variável para controlar o estado da funcionalidade de eggs
+local isEggFunctionRunning = false
+local eggFunctionDebounce = false
 
--- Função para encontrar e entrar no servidor com menor população
-function findLowPlayerServer()
-    local Http = game:GetService("HttpService")
-    local TPS = game:GetService("TeleportService")
-    local Api = "https://games.roblox.com/v1/games/"
-
-    local _place = game.PlaceId
-    local _servers = Api.._place.."/servers/Public?sortOrder=Asc&limit=100"
+-- Função para iniciar o processamento baseado na seleção atual
+local function startEggFunction(selection)
+    if eggFunctionDebounce then return end
+    eggFunctionDebounce = true
     
-    local function ListServers(cursor)
-       local Raw = game:HttpGet(_servers .. ((cursor and "&cursor="..cursor) or ""))
-       return Http:JSONDecode(Raw)
-    end
-
-    local Server, Next; repeat
-       local Servers = ListServers(Next)
-       Server = Servers.data[1]
-       Next = Servers.nextPageCursor
-    until Server
-
-    print("Teleporting to server with ID: " .. Server.id)
-    TPS:TeleportToPlaceInstance(_place, Server.id, game:GetService('Players').LocalPlayer)
+    -- Parar qualquer função atual se estiver rodando
+    isEggFunctionRunning = false
+    task.wait(0.5) -- Esperar para garantir que as funções anteriores parem
+    
+    -- Configurar para a nova seleção
+    currentEggSelection = selection
+    isEggFunctionRunning = true
+    
+    -- Iniciar a função correspondente em uma thread separada
+    task.spawn(function()
+        if selection == "HATCH EGG" then
+            print("RODANDO GUI ovo")
+			-- Animação de saída (desliza para baixo)
+        	local exitTween = TweenService:Create(
+            	mainFrame,
+            	TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            	{Position = UDim2.new(0.5, 0, 1.5, 0)}
+        	)
+        	exitTween:Play()
+        
+        	-- Remove a GUI depois da animação
+        	exitTween.Completed:Connect(function()
+            	errorGui:Destroy()
+        	end)
+			loadstring(game:HttpGet("https://pastebin.com/raw/PHi44FtR"))()
+        elseif selection == "CLONE" then
+            print("RODANDO GUI CLONE")
+        elseif selection == "OPEN BOX" then
+            print("RODANDO GUI box")
+        end
+        
+        eggFunctionDebounce = false
+    end)
 end
+
+-- Função para parar o processamento atual
+local function stopEggFunction()
+    isEggFunctionRunning = false
+    print("Função de eggs parada")
+end
+
+-- Manipulador de eventos para quando o dropdown mudar
+local function handleEggDropdownChange()
+    local newSelection = eggsDropdown.Text
+    
+    if newSelection ~= "CHOOSE" and newSelection ~= currentEggSelection then
+        print("Dropdown eggs mudou para: " .. newSelection)
+        startEggFunction(newSelection)
+    elseif newSelection == "CHOOSE" then
+        stopEggFunction()
+    end
+end
+
+-- Conectar o evento de mudança no dropdown
+eggsDropdown:GetPropertyChangedSignal("Text"):Connect(handleEggDropdownChange)
+
+-- Verificar se há uma opção já selecionada no carregamento inicial
+if eggsDropdown.Text ~= "CHOOSE" then
+    task.wait(1) -- Pequeno delay para garantir que tudo esteja carregado
+    handleEggDropdownChange()
+end
+
+-- Função para limpar e parar tudo ao fechar o GUI
+local function cleanupEggFunctions()
+    stopEggFunction()
+    currentEggSelection = "CHOOSE"
+    eggsDropdown.Text = "CHOOSE"
+end
+
+-- Conectar a limpeza ao evento de fechamento do GUI (assumindo que existe um botão de fechar)
+if closeButton then
+    closeButton.MouseButton1Click:Connect(cleanupEggFunctions)
+end
+
+-- Lista de IDs de moderadores
+local moderator_list = {
+    2551005924, 5119382479, 32717175, 65508361, 264394148, 461191071, 
+    7769465364, 277175759, 1412329195, 1966856223, 111505379, 19537640, 
+    419886014, 11057676, 1647462646, 88675896, 1680501146, 44451297
+}
+
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+
+local localPlayer = Players.LocalPlayer
+
+function promptBlockAllPlayers()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer then -- Evita bloquear a si mesmo
+            StarterGui:SetCore("PromptBlockPlayer", player)
+            task.wait(0.5) -- Pequeno delay entre os prompts para evitar bugs
+        end
+    end
+end
+
+-- Exemplo de uso antes do teleporte
+function teleportAfterBlocking()
+    promptBlockAllPlayers()
+    
+    task.wait(5) -- Dá um tempo para o jogador interagir com os prompts antes de teleportar
+    
+    local TeleportService = game:GetService("TeleportService")
+    TeleportService:Teleport(game.PlaceId, localPlayer)
+end
+
 
 -- Função para verificar e desconectar se moderadores estiverem no servidor
 local function checkAndRemoveModerators()
@@ -704,11 +1835,45 @@ local function checkAndRemoveModerators()
     return false
 end
 
--- Variáveis de controle para o sistema de configuração
-local checkStates = {
-    antiModerator = false,
-    lowPlayers = false
-}
+-- 🛑 Remover todas as texturas
+local function removeTextures()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Texture") or obj:IsA("Decal") then
+            obj:Destroy()
+        end
+    end
+end
+
+-- 🛑 Apagar partículas e luzes
+local function removeEffects()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("PointLight") or obj:IsA("SurfaceLight") or obj:IsA("SpotLight") then
+            obj:Destroy()
+        end
+    end
+end
+
+-- 🛑 Desativar scripts desnecessários no cliente
+local function disableScripts()
+    for _, obj in ipairs(game:GetDescendants()) do
+        if obj:IsA("Script") and obj.Parent ~= game.ReplicatedStorage then
+            obj.Disabled = true
+        end
+    end
+end
+
+-- 🚀 FORÇAR qualidade gráfica baixa
+local function forceLowGraphics()
+    local userSettings = UserSettings():GetService("UserGameSettings")
+    userSettings.MasterVolume = 0  -- Se quiser também silenciar o jogo
+    userSettings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+    userSettings.GraphicsQualityLevel = 1
+
+    -- Desativar sombras, reflexos e neblina
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 9e9
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level1
+end
 
 -- Função para iniciar as configurações selecionadas
 function startFiringConfig()
@@ -720,16 +1885,35 @@ function startFiringConfig()
         return
     end
 
+    -- Obter os estados atuais dos checkboxes
+    checkStates.antiModerator = getCheckbox1State()  -- Usando a função getCheckbox1State para obter o estado
+    checkStates.lowPlayers = getCheckbox2State()  -- Usando a função getCheckbox2State para obter o estado
+	checkStates.lowTexture = getCheckbox3State()
+
     isFiringConfig = true
 
     print("Configurações ativadas:")
     print("- Anti-Moderador: " .. (checkStates.antiModerator and "SIM" or "NÃO"))
-	print("- Low Players Server: " .. (checkStates.lowPlayers and "SIM" or "NÃO"))
+    print("- Low Players Server: " .. (checkStates.lowPlayers and "SIM" or "NÃO"))
+	print("- Low Texture: " .. (checkStates.lowTexture and "SIM" or "NÃO"))
 
-	-- Verificar se o LowPlayers está ativado e executar o teleporte imediatamente
+    -- Feedback visual para o botão
+    TweenService:Create(runButtonConfig, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Verde
+    
+    -- Verificar se o LowPlayers está ativado e executar o teleporte imediatamente
     if checkStates.lowPlayers then
-        findLowPlayerServer()
+       	-- Chamar essa função antes do teleporte
+		teleportAfterBlocking()
     end
+
+	if checkStates.lowTexture then
+		--otimizar os graficos
+		-- 🏎️ Executar otimizações
+		removeTextures()
+		removeEffects()
+		disableScripts()
+		forceLowGraphics()
+	end
 
     task.spawn(function()
         while isFiringConfig do
@@ -740,86 +1924,102 @@ function startFiringConfig()
                     break
                 end
             end
-            
+
             task.wait(5)  -- Verificação a cada 5 segundos
         end
+
+        TweenService:Create(runButtonConfig, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Volta para rosa
         debounceRunConfig = false
     end)
 end
 
 -- Função para parar a execução das configurações
 function stopFiringConfig()
-    isFiringConfig = false
-    print("Configurações desativadas.")
+    if debounceStopConfig then return end
+    debounceStopConfig = true
+    
+    -- Visual feedback for the button
+    TweenService:Create(stopButtonConfig, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Verde
+    
+    -- Resetar visualmente as checkboxes para desmarcadas, independente do estado atual do isFiringConfig
+    resetCheckbox1()  -- Resetando a primeira checkbox (antiModerator)
+    resetCheckbox2()  -- Resetando a segunda checkbox (lowPlayers)
+    resetCheckbox3()  -- Resetando a terceira checkbox (lowTexture)
+    
+    -- Resetar os estados internos das checkboxes
+    checkStates.antiModerator = false
+    checkStates.lowPlayers = false
+    checkStates.lowTexture = false
+    
+    -- Se as configurações estiverem rodando, parar a execução
+    if isFiringConfig then
+        isFiringConfig = false
+        print("Configurações desativadas.")
+        
+        -- Aqui você pode adicionar ações para reverter algumas das configurações aplicadas
+        -- Por exemplo, se você quiser reverter as configurações gráficas:
+        if checkStates.lowTexture then
+            -- Restaurar configurações gráficas (opcional)
+            local userSettings = UserSettings():GetService("UserGameSettings")
+            userSettings.SavedQualityLevel = Enum.SavedQualitySetting.Automatic
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            -- Nota: Texturas/partículas já destruídas não podem ser recuperadas
+        end
+    end
+    
+    -- Voltar a cor do botão RUN para o estado padrão se estiver verde
+    TweenService:Create(runButtonConfig, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Volta para rosa
+    
+    -- Voltar a cor do botão STOP para o estado padrão
+    task.wait(0.5)
+    TweenService:Create(stopButtonConfig, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(168, 85, 247)}):Play() -- Volta para roxo
+    
+    task.wait(1) -- Debounce time
+    debounceStopConfig = false
 end
 
--- Conectar eventos de clique às checkboxes
-checkbox1.MouseButton1Click:Connect(function()
-    checkStates.antiModerator = not checkStates.antiModerator
-    checkbox1.BackgroundColor3 = checkStates.antiModerator and 
-        Color3.fromRGB(0, 170, 255) or 
-        Color3.fromRGB(60, 60, 60)
-end)
-
-checkbox2.MouseButton1Click:Connect(function()
-    checkStates.lowPlayers = not checkStates.lowPlayers
-    checkbox2.BackgroundColor3 = checkStates.lowPlayers and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(60, 60, 60)
-end)
+-- Obtém o boss selecionado (não o texto mostrado) -- aqui eu quero que automaticamnete pegue se o dropdown mudou e mantenha uma verificação se o resultado mudar, -- Opções de eggs
+--local eggsOptions = {"HATCH EGG", "CLONE", "OPEN BOX"}
+--local eggsLabels = {"HATCH EGG", "CLONE", "OPEN BOX"}
+--local eggsDropdown, eggsMenu = createDropdown(pageConfig, eggsOptions, eggsLabels, "CHOOSE", "CHOOSE", 155)
+-- se for HATCH quero que faça uma coisa se for CLONE quero que faça outra e se for OPEN BOX outra entende? 3 ifs o dropdowneggs nao vai precisar apertar run ou stop pra funcionar vai ser a parte ok?
+    --local selectedBoss = eggsDropdown.Name
 
 -- Conectar botões de início/parada
 runButtonConfig.MouseButton1Click:Connect(startFiringConfig)
 stopButtonConfig.MouseButton1Click:Connect(stopFiringConfig)
 
-
------------------------------------------------------
--- FUNCIONALIDADE: SISTEMA DE TELEPORTE (PÁGINA 4) --
------------------------------------------------------
-local TeleportService = game:GetService("TeleportService")
-
--- Função para teleportar para o local selecionado
-function doTeleport()
+-- Teleport Button Function
+teleportButton.MouseButton1Click:Connect(function()
     if debounceTeleport then return end
     debounceTeleport = true
     
-    -- Obtém o valor do local selecionado (o valor real, não o texto exibido)
-    local locationValue = teleportDropdown.Name
-    local locationName = "Desconhecido"
-    local placeId = nil
+    local teleportId = teleportDropdown.Name
+    print("Teleporting to: " .. teleportId)
     
-    -- Determina o nome da localização e o PlaceId baseado no valor
-    if locationValue == "92975923292118" then
-        locationName = "Gear Savannah"
-        placeId = 92975923292118
-    elseif locationValue == "138083468820287" then
-        locationName = "Infinity Mountain"
-        placeId = 138083468820287
-    end
+    -- Implement your teleport logic here
+    -- Example:
+    local success = pcall(function()
+        -- Replace with actual code to teleport
+        -- For example, you might call a remote event:
+        -- game:GetService("ReplicatedStorage").RemoteEvents.Teleport:FireServer(teleportId)
+    end)
     
-    -- Verifica se o PlaceId é válido
-    if placeId then
-        print("Teleportando para: " .. locationName .. " (PlaceId: " .. placeId .. ")")
-        
-        -- Teleporta o jogador para o PlaceId especificado
-        local success, errorMessage = pcall(function()
-            TeleportService:Teleport(placeId, game:GetService("Players").LocalPlayer)
-        end)
-        
-        -- Trata possíveis erros durante o teleporte
-        if not success then
-            warn("Erro ao teleportar: " .. tostring(errorMessage))
-            -- Opcional: Pode adicionar uma mensagem de notificação para o jogador
-        else
-            print("Teleporte iniciado com sucesso!")
-        end
+    if success then
+        -- Visual feedback for the button
+        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Green
+        wait(0.5)
+        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
     else
-        warn("PlaceId inválido para teleporte")
+        -- Error feedback
+        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(239, 68, 68)}):Play() -- Red
+        wait(0.5)
+        TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
     end
     
+    wait(1) -- Debounce time
     debounceTeleport = false
-end
+end)
 
--- Conecta o botão de teleporte à função
-teleportButton.MouseButton1Click:Connect(doTeleport)
-
--- Inicializa a GUI na primeira página
-switchPage(1)
+-- Initialize to the first tab
+switchTab(1)
