@@ -23,12 +23,6 @@ runService.RenderStepped:Connect(function()
     end
 end)
 
--- Removendo o botão "Close" se existir
-local closeButton = cloningFrame:FindFirstChild("Close")
-if closeButton then
-    closeButton:Destroy()
-end
-
 -- Criando o botão "Return"
 local returnButton = Instance.new("TextButton")
 returnButton.Name = "Return"
