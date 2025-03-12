@@ -21,7 +21,7 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
 -- Variable to store the DropDown selection
-local selectedType = "DATA"
+local selectedType = "CHOOSE A BOX"
 
 -- Function to create a modern UI button with gradient
 local function createStylishButton(parent, text, position, size)
@@ -216,7 +216,7 @@ local function createStylishTextBox(parent, placeholderText, position)
 end
 
 -- Function to create a search box with dropdown results
-local function createSearchBox(parent, position, options)
+local function createSearchBox(parent, position, labels, options)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(0, 250, 0, 50)
     container.Position = position
@@ -246,7 +246,7 @@ local function createSearchBox(parent, position, options)
     resultsFrame.BorderSizePixel = 0
     resultsFrame.Visible = false
     resultsFrame.ZIndex = 10
-    resultsFrame.CanvasSize = UDim2.new(0, 0, 0, #options * 40)
+    resultsFrame.CanvasSize = UDim2.new(0, 0, 0, #labels * 40)
     resultsFrame.ScrollBarThickness = 6
     
     local menuCorner = Instance.new("UICorner")
@@ -264,7 +264,7 @@ local function createSearchBox(parent, position, options)
         optionButton.Size = UDim2.new(1, -10, 0, 40)
         optionButton.Position = UDim2.new(0, 5, 0, (i-1) * 40)
         optionButton.Text = label
-        optionButton:SetAttribute("RealValue", options[i]) -- Armazena o valor real
+        optionButton:SetAttribute("RealValue", options[i]) -- Store the real value
         optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         optionButton.Font = Enum.Font.GothamSemibold
         optionButton.TextSize = 14
@@ -294,12 +294,6 @@ local function createSearchBox(parent, position, options)
         
         table.insert(optionButtons, optionButton)
         table.insert(visibleButtons, optionButton)
-
-        optionButton.MouseButton1Click:Connect(function()
-            searchBox.searchBox.Text = label
-            searchBox.selectedValue = options[i] -- Armazena o valor real selecionado
-            searchBox.resultsFrame.Visible = false
-        end)
     end
     
     -- Function to update visible options based on search
@@ -365,12 +359,25 @@ local function createSearchBox(parent, position, options)
         end
     end)
     
+    -- Connect option buttons
+    for i, button in ipairs(optionButtons) do
+        button.MouseButton1Click:Connect(function()
+            searchBox.Text = button.Text
+            local selectedRealValue = button:GetAttribute("RealValue")
+            container:SetAttribute("SelectedValue", selectedRealValue)
+            resultsFrame.Visible = false
+        end)
+    end
+    
     return {
         container = container,
         searchBox = searchBox,
         optionButtons = optionButtons,
         resultsFrame = resultsFrame,
-        selectedValue = nil
+        selectedValue = nil,
+        getSelectedValue = function() 
+            return container:GetAttribute("SelectedValue") 
+        end
     }
 end
 
@@ -391,9 +398,9 @@ local function teleportCameraAndCreatePlatform()
     platform.Position = Vector3.new(targetPosition.X, targetPosition.Y - 5, targetPosition.Z + 10)
     platform.Parent = workspace
 
-	-- Adicionar textura ao chão (opcional)
+    -- Add texture to the floor (optional)
     local texture = Instance.new("Texture")
-    texture.Texture = "rbxassetid://6372755229" -- ID de uma textura de chão
+    texture.Texture = "rbxassetid://6372755229" -- Floor texture ID
     texture.Face = Enum.NormalId.Top
     texture.Parent = platform
 
@@ -411,8 +418,7 @@ local function teleportCameraAndCreatePlatform()
     meshPart.Parent = workspace
     table.insert(createdObjects, meshPart)
     
-	    
-	-- Move the camera to the desired position
+    -- Move the camera to the desired position
     camera.CameraType = Enum.CameraType.Scriptable
     camera.CFrame = CFrame.new(targetPosition, platform.Position)
 
@@ -448,38 +454,39 @@ local function teleportCameraAndCreatePlatform()
     titleLabel.BackgroundTransparency = 1
     titleLabel.Parent = mainFrame
 
-	-- Digimon list for search
-	local boxOptions = {
-    "BoxArmageddemon", "BoxBM", "BoxValentines", "BoxColiseum", "BoxColiseum2", 
-    "BoxCompensation1", "BoxEggMysterious", "BoxEquipment1", "BoxEquipment2", "BoxEvoluterData", "BoxEvoluterVaccine", 
-    "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial1", "BoxMaterial2", "BoxMaterial3", 
-    "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxValentines", "BoxWaruMonzaemon", 
-    "DungeonBoxEpsilonHard", "DungeonBoxEpsilonNormal", "DungeonBoxGeremonHard", "DungeonBoxGeremonEasy", "DungeonBoxGeremonNormal", "DungeonBoxOgremonEasy", 
-    "DungeonBoxOgremonNormal", "DungeonBoxOgremonHard"
-	}
-  local boxLabels = {
-      "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum2(NORMAL)", 
-    "BoxCompensation1", "BoxEggMysterious", "BoxEquipment(LEVEL 5)", "BoxEquipment(MATERIAL LEVEL 25)", "BoxEvoluterData", "BoxEvoluterVaccine", 
-    "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial(SILVER RIVER)", "BoxMaterial(GEAR SAVANNAH)", "BoxMaterial(INFINITE MOUNTAIN)", 
-    "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxChristmas", "BoxWaruMonzaemon", 
-    "DungeonBoxEpsilon(Hard)", "DungeonBoxEpsilon(Normal)", "DungeonBoxGeremon(Hard)", "DungeonBoxGeremon(Easy)", "DungeonBoxGeremon(Normal)", "DungeonBoxOgremon(Easy)", 
-    "DungeonBoxOgremon(Normal)", "DungeonBoxOgremon(Hard)"
-  }
-
-	-- Na seção de criação da UI:
-local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabels, boxOptions)
-
-
-	local dropdown = createStylishDropdown(mainFrame, selectedType, boxOptions, UDim2.new(0.1, 0, 0.5, 0))    
+    -- Digimon list for search
+    local boxOptions = {
+        "BoxArmageddemon", "BoxBM", "BoxValentines", "BoxColiseum", "BoxColiseum2", 
+        "BoxCompensation1", "BoxEggMysterious", "BoxEquipment1", "BoxEquipment2", "BoxEvoluterData", "BoxEvoluterVaccine", 
+        "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial1", "BoxMaterial2", "BoxMaterial3", 
+        "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxValentines", "BoxWaruMonzaemon", 
+        "DungeonBoxEpsilonHard", "DungeonBoxEpsilonNormal", "DungeonBoxGeremonHard", "DungeonBoxGeremonEasy", "DungeonBoxGeremonNormal", "DungeonBoxOgremonEasy", 
+        "DungeonBoxOgremonNormal", "DungeonBoxOgremonHard"
+    }
     
-    -- Create text input (vai ser usada pro player passar o valor de caixas que ele quer abrir
-    local inputBox = createStylishTextBox(mainFrame, "Value", UDim2.new(0.75, 0, 0.4, 0))
+    local boxLabels = {
+        "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum2(NORMAL)", 
+        "BoxCompensation1", "BoxEggMysterious", "BoxEquipment(LEVEL 5)", "BoxEquipment(MATERIAL LEVEL 25)", "BoxEvoluterData", "BoxEvoluterVaccine", 
+        "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial(SILVER RIVER)", "BoxMaterial(GEAR SAVANNAH)", "BoxMaterial(INFINITE MOUNTAIN)", 
+        "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxChristmas", "BoxWaruMonzaemon", 
+        "DungeonBoxEpsilon(Hard)", "DungeonBoxEpsilon(Normal)", "DungeonBoxGeremon(Hard)", "DungeonBoxGeremon(Easy)", "DungeonBoxGeremon(Normal)", "DungeonBoxOgremon(Easy)", 
+        "DungeonBoxOgremon(Normal)", "DungeonBoxOgremon(Hard)"
+    }
+
+    -- Create search box with proper parameters
+    local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabels, boxOptions)
     
-    -- Create OPEN button (botao pra abrir as caixas
+    -- Create dropdown as a fallback/alternative selection method
+    local dropdown = createStylishDropdown(mainFrame, selectedType, boxOptions, UDim2.new(0.1, 0, 0.5, 0))    
+    
+    -- Create text input for quantity
+    local inputBox = createStylishTextBox(mainFrame, "Quantity", UDim2.new(0.75, 0, 0.4, 0))
+    
+    -- Create OPEN button
     local openButton = createStylishButton(mainFrame, "OPEN", UDim2.new(0.5, -75, 0.7, 0))
     
     -- Create RETURN button
-    local returnButton = createStylishButton(mainFrame, "RETURN", UDim2.new(0.5, -75, 1, 0))
+    local returnButton = createStylishButton(mainFrame, "RETURN", UDim2.new(0.5, -75, 0.9, 0))
     
     -- Text above the mesh showing the selection
     local selectedTypeLabel = Instance.new("BillboardGui")
@@ -499,53 +506,48 @@ local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabe
     selectedTypeLabel.Parent = meshPart
     table.insert(createdObjects, selectedTypeLabel)
 
-	-- Connect search option buttons
-	for _, optionButton in ipairs(searchBox.optionButtons) do
-   	 	optionButton.MouseButton1Click:Connect(function()
-        	local selectedValue = optionButton.Text
-        	searchBox.searchBox.Text = selectedValue
-        	searchBox.resultsFrame.Visible = false
+    -- Function to create floating text effect
+    local function createFloatingText(text)
+        local floatingText = Instance.new("BillboardGui")
+        floatingText.Name = "FloatingEffect"
+        floatingText.Size = UDim2.new(0, 200, 0, 50)
+        floatingText.StudsOffset = Vector3.new(0, 4, 0)
+        floatingText.Adornee = meshPart
+        floatingText.AlwaysOnTop = true
+        table.insert(createdObjects, floatingText)
         
-        	-- Add a floating text effect when changed
-        	local floatingText = Instance.new("BillboardGui")
-        	floatingText.Name = "FloatingEffect"
-        	floatingText.Size = UDim2.new(0, 200, 0, 50)
-        	floatingText.StudsOffset = Vector3.new(0, 4, 0)
-        	floatingText.Adornee = meshPart
-        	floatingText.AlwaysOnTop = true
-        	table.insert(createdObjects, floatingText)
+        local floatingTextLabel = Instance.new("TextLabel")
+        floatingTextLabel.Size = UDim2.new(1, 0, 1, 0)
+        floatingTextLabel.BackgroundTransparency = 1
+        floatingTextLabel.Text = text
+        floatingTextLabel.TextColor3 = Color3.fromRGB(111, 76, 255)
+        floatingTextLabel.TextScaled = true
+        floatingTextLabel.Font = Enum.Font.GothamBold
+        floatingTextLabel.Parent = floatingText
+        floatingText.Parent = workspace
         
-        	local floatingTextLabel = Instance.new("TextLabel")
-        	floatingTextLabel.Size = UDim2.new(1, 0, 1, 0)
-       	 	floatingTextLabel.BackgroundTransparency = 1
-        	floatingTextLabel.Text = "Selected: " .. selectedValue
-        	floatingTextLabel.TextColor3 = Color3.fromRGB(111, 76, 255)
-        	floatingTextLabel.TextScaled = true
-        	floatingTextLabel.Font = Enum.Font.GothamBold
-        	floatingTextLabel.Parent = floatingText
-        	floatingText.Parent = workspace
+        -- Animate the text floating up and fading
+        local startPosition = floatingText.StudsOffset
+        local endPosition = startPosition + Vector3.new(0, 2, 0)
         
-        	-- Animate the text floating up and fading
-        	local startPosition = floatingText.StudsOffset
-        	local endPosition = startPosition + Vector3.new(0, 2, 0)
-        
-        	spawn(function()
-            	for i = 0, 1, 0.05 do
-                	if floatingText and floatingText.Parent then
-                    	floatingText.StudsOffset = startPosition:Lerp(endPosition, i)
-                    	floatingTextLabel.TextTransparency = i
-                    	wait(0.02)
-                	else
-                    	break
-                	end
-            	end
+        spawn(function()
+            for i = 0, 1, 0.05 do
+                if floatingText and floatingText.Parent then
+                    floatingText.StudsOffset = startPosition:Lerp(endPosition, i)
+                    floatingTextLabel.TextTransparency = i
+                    wait(0.02)
+                else
+                    break
+                end
+            end
             
-            	if floatingText and floatingText.Parent then
-                	floatingText:Destroy()
-            	end
-        	end)
-    	end)
-	end
+            if floatingText and floatingText.Parent then
+                floatingText:Destroy()
+            end
+        end)
+        
+        return floatingText
+    end
     
     -- Function to completely clean up everything created
     local function cleanupEverything()
@@ -591,47 +593,62 @@ local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabe
             selectedTextLabel.Text = selectedType
             
             -- Add a floating text effect when changed
-            local floatingText = Instance.new("BillboardGui")
-            floatingText.Name = "FloatingEffect"
-            floatingText.Size = UDim2.new(0, 200, 0, 50)
-            floatingText.StudsOffset = Vector3.new(0, 4, 0)
-            floatingText.Adornee = meshPart
-            floatingText.AlwaysOnTop = true
-            table.insert(createdObjects, floatingText)
-            
-            local floatingTextLabel = Instance.new("TextLabel")
-            floatingTextLabel.Size = UDim2.new(1, 0, 1, 0)
-            floatingTextLabel.BackgroundTransparency = 1
-            floatingTextLabel.Text = "Changed to " .. selectedValue
-            floatingTextLabel.TextColor3 = Color3.fromRGB(111, 76, 255)
-            floatingTextLabel.TextScaled = true
-            floatingTextLabel.Font = Enum.Font.GothamBold
-            floatingTextLabel.Parent = floatingText
-            floatingText.Parent = workspace
-            
-            -- Animate the text floating up and fading
-            local startPosition = floatingText.StudsOffset
-            local endPosition = startPosition + Vector3.new(0, 2, 0)
-            
-            spawn(function()
-                for i = 0, 1, 0.05 do
-                    if floatingText and floatingText.Parent then
-                        floatingText.StudsOffset = startPosition:Lerp(endPosition, i)
-                        floatingTextLabel.TextTransparency = i
-                        wait(0.02)
-                    else
-                        break
-                    end
-                end
-                
-                if floatingText and floatingText.Parent then
-                    floatingText:Destroy()
-                end
-            end)
+            createFloatingText("Changed to " .. selectedValue)
         end)
     end
     
-    -- Connect RETURN button to cleanup everything
+    -- Connect to search option buttons via the parent container
+    searchBox.container.Changed:Connect(function(property)
+        if property == "SelectedValue" then
+            local selectedValue = searchBox.container:GetAttribute("SelectedValue")
+            local selectedLabel = searchBox.searchBox.Text
+            
+            if selectedValue then
+                selectedType = selectedValue
+                selectedTextLabel.Text = selectedLabel
+                createFloatingText("Selected: " .. selectedLabel)
+            end
+        end
+    end)
+    
+    -- Connect OPEN button
+    openButton.MouseButton1Click:Connect(function()
+        local selectedBoxValue
+        
+        -- First try to get selection from search box
+        if searchBox.getSelectedValue() then
+            selectedBoxValue = searchBox.getSelectedValue()
+        -- If not available, use dropdown selection
+        elseif dropdown.mainButton.Text ~= "CHOOSE A BOX" then
+            selectedBoxValue = dropdown.mainButton.Text
+        else
+            -- No selection made, show notification and return
+            createFloatingText("Please select a box first!")
+            return
+        end
+        
+        -- Get quantity from input box
+        local quantity = tonumber(inputBox.Text) or 1
+        
+        -- Verify valid quantity
+        if quantity <= 0 then
+            createFloatingText("Please enter a valid quantity!")
+            return
+        end
+        
+        -- Show notification for opening
+        createFloatingText("Opening " .. quantity .. "x " .. selectedBoxValue)
+        
+        -- Make the server call
+        local args = {
+            [1] = selectedBoxValue,
+            [2] = quantity
+        }
+        
+        game:GetService("ReplicatedStorage").ItemsEvent.OpenBoxEvent:InvokeServer(unpack(args))
+    end)
+    
+    -- Connect RETURN button
     returnButton.MouseButton1Click:Connect(function()
         -- Visual feedback before returning
         local returnEffect = Instance.new("Frame")
@@ -641,7 +658,7 @@ local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabe
         returnEffect.Parent = screenGui
         
         -- Fade to black animation before cleanup
-        for i = 1, 0, -0.1 do
+	for i = 1, 0, -0.1 do
             returnEffect.BackgroundTransparency = i
             wait(0.02)
         end
@@ -649,26 +666,6 @@ local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabe
         -- Now clean up everything
         cleanupEverything()
     end)
-
-	-- Modificação no botão OPEN:
-  openButton.MouseButton1Click:Connect(function()
-      local selectedBox = searchBox.selectedValue or dropdown.mainButton.Text
-      local repeatCount = tonumber(inputBox.Text) or 1
-
-      -- Verifica se é uma caixa especial
-      if selectedBox:find("DungeonBox") then
-          local dungeonLevel = selectedBox:match("%((%w+)%)") or "Normal"
-          print("Abrindo caixa de dungeon:", dungeonLevel)
-      end
-
-      -- Chamada ao servidor com o valor REAL
-      local args = {
-          [1] = selectedBox,
-          [2] = repeatCount
-      }
-    
-      game:GetService("ReplicatedStorage").ItemsEvent.OpenBoxEvent:InvokeServer(unpack(args))
-  end)
 end
 
 teleportCameraAndCreatePlatform()
