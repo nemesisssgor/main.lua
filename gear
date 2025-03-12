@@ -212,7 +212,7 @@ end
 stopButton, startButton, controlGUI = createButtons()
 
 -- Teleportar o jogador para a posição fixa
-local function teleportToSafePosition()
+local function teleportToBackOfJijimon()
     if player.Character and player.Character.PrimaryPart then
         player.Character:SetPrimaryPartCFrame(CFrame.new(-2159.74414, 1346.13293, -1337.91553, -0.911191165, 0.0837708116, -0.403377146, -2.19909158e-09, 0.979109168, 0.203335196, 0.411983818, 0.185277238, -0.892155647))
         print("Teleportado para a posição segura!")
