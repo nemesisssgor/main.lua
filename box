@@ -215,6 +215,250 @@ local function createStylishTextBox(parent, placeholderText, position)
     return textBox
 end
 
+--criar um dropview com scroll
+local function createScrollableDropdown(parent, defaultLabel, labels, values, position)
+    assert(#labels == #values, "Labels and values must have the same length")
+    
+    -- Main container
+    local dropdownContainer = Instance.new("Frame")
+    dropdownContainer.Size = UDim2.new(0, 150, 0, 50)
+    dropdownContainer.Position = position
+    dropdownContainer.BackgroundTransparency = 1
+    dropdownContainer.Parent = parent
+    
+    -- Store the actual selected value
+    dropdownContainer:SetAttribute("SelectedValue", nil)
+    
+    -- Main button that shows the current selection
+    local mainButton = createStylishButton(dropdownContainer, defaultLabel, UDim2.new(0, 0, 0, 0))
+    
+    -- Create dropdown arrow
+    local arrow = Instance.new("TextLabel")
+    arrow.Size = UDim2.new(0, 20, 0, 20)
+    arrow.Position = UDim2.new(1, -25, 0.5, -10)
+    arrow.Text = "▼"
+    arrow.TextColor3 = Color3.fromRGB(255, 255, 255)
+    arrow.BackgroundTransparency = 1
+    arrow.Font = Enum.Font.GothamSemibold
+    arrow.TextSize = 14
+    arrow.Parent = mainButton
+    
+    -- Create the dropdown menu container
+    local dropdownMenu = Instance.new("Frame")
+    dropdownMenu.Size = UDim2.new(1, 0, 0, math.min(200, #labels * 40)) -- Limit height
+    dropdownMenu.Position = UDim2.new(0, 0, 1, 5)
+    dropdownMenu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dropdownMenu.BorderSizePixel = 0
+    dropdownMenu.Visible = false
+    dropdownMenu.ZIndex = 10
+    dropdownMenu.ClipsDescendants = true -- Important for scrolling
+    
+    local menuCorner = Instance.new("UICorner")
+    menuCorner.CornerRadius = UDim.new(0, 8)
+    menuCorner.Parent = dropdownMenu
+    
+    -- Create scrolling frame for options
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(111, 76, 255)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #labels * 40)
+    scrollFrame.ZIndex = 10
+    scrollFrame.Parent = dropdownMenu
+    
+    -- Enable dragging on the scroll frame
+    local dragStart
+    local startPos
+    local scrollStartPos
+    
+    scrollFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragStart = input.Position
+            startPos = scrollFrame.Position
+            scrollStartPos = scrollFrame.CanvasPosition
+        end
+    end)
+    
+    scrollFrame.InputChanged:Connect(function(input)
+        if dragStart and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                         input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            scrollFrame.CanvasPosition = Vector2.new(
+                scrollStartPos.X,
+                scrollStartPos.Y - delta.Y
+            )
+        end
+    end)
+    
+    scrollFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragStart = nil
+            startPos = nil
+            scrollStartPos = nil
+        end
+    end)
+    
+    dropdownMenu.Parent = dropdownContainer
+    
+    -- Create option buttons
+    local optionButtons = {}
+    for i, label in ipairs(labels) do
+        local optionButton = Instance.new("TextButton")
+        optionButton.Size = UDim2.new(1, -10, 0, 40)
+        optionButton.Position = UDim2.new(0, 5, 0, (i-1) * 40)
+        optionButton.Text = label
+        optionButton:SetAttribute("RealValue", values[i]) -- Store the real value
+        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        optionButton.Font = Enum.Font.GothamSemibold
+        optionButton.TextSize = 14
+        optionButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        optionButton.BackgroundTransparency = 0
+        optionButton.BorderSizePixel = 0
+        optionButton.ZIndex = 10
+        optionButton.Parent = scrollFrame
+        
+        local optionGradient = Instance.new("UIGradient")
+        optionGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(111, 76, 255)), -- Purple
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(67, 59, 148))   -- Dark purple
+        })
+        optionGradient.Rotation = 45
+        optionGradient.Transparency = NumberSequence.new(0.5)
+        optionGradient.Parent = optionButton
+        
+        optionButton.MouseEnter:Connect(function()
+            tweenService:Create(optionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(60, 60, 60)}):Play()
+        end)
+        
+        optionButton.MouseLeave:Connect(function()
+            tweenService:Create(optionButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+        end)
+        
+        -- Connect option selection
+        optionButton.MouseButton1Click:Connect(function()
+            -- Update the button text and store the real value
+            mainButton.Text = label
+            dropdownContainer:SetAttribute("SelectedValue", optionButton:GetAttribute("RealValue"))
+            
+            -- Close the dropdown
+            dropdownMenu.Visible = false
+            arrow.Text = "▼"
+            
+            -- Fire a change event
+            local event = Instance.new("BindableEvent")
+            event.Name = "ValueChanged"
+            event.Parent = dropdownContainer
+            event:Fire(optionButton:GetAttribute("RealValue"), label)
+            event:Destroy()
+        end)
+        
+        table.insert(optionButtons, optionButton)
+    end
+    
+    -- Toggle dropdown visibility
+    local isOpen = false
+    mainButton.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        dropdownMenu.Visible = isOpen
+        arrow.Text = isOpen and "▲" or "▼"
+    end)
+    
+    -- Close dropdown if clicked elsewhere
+    userInputService.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local position = userInputService:GetMouseLocation()
+            local objects = players.LocalPlayer:GetGuiObjectsAtPosition(position.X, position.Y)
+            local clickedOnDropdown = false
+            
+            for _, obj in pairs(objects) do
+                if obj == mainButton or obj == dropdownMenu or obj:IsDescendantOf(dropdownMenu) then
+                    clickedOnDropdown = true
+                    break
+                end
+            end
+            
+            if not clickedOnDropdown and isOpen then
+                isOpen = false
+                dropdownMenu.Visible = false
+                arrow.Text = "▼"
+            end
+        end
+    end)
+    
+    -- Add a search bar at the top of the dropdown (optional enhancement)
+    local searchBar = Instance.new("TextBox")
+    searchBar.Size = UDim2.new(1, -10, 0, 30)
+    searchBar.Position = UDim2.new(0, 5, 0, 5)
+    searchBar.PlaceholderText = "Search..."
+    searchBar.Text = ""
+    searchBar.Font = Enum.Font.GothamSemibold
+    searchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+    searchBar.TextSize = 14
+    searchBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    searchBar.BorderSizePixel = 0
+    searchBar.ZIndex = 11
+    
+    local searchCorner = Instance.new("UICorner")
+    searchCorner.CornerRadius = UDim.new(0, 6)
+    searchCorner.Parent = searchBar
+    
+    -- Add search functionality
+    searchBar.Changed:Connect(function(property)
+        if property == "Text" then
+            local searchText = searchBar.Text:lower()
+            local visibleCount = 0
+            
+            -- Filter and reposition visible buttons
+            for i, button in ipairs(optionButtons) do
+                if searchText == "" or string.find(button.Text:lower(), searchText) then
+                    button.Visible = true
+                    button.Position = UDim2.new(0, 5, 0, visibleCount * 40 + 40) -- +40 for search bar
+                    visibleCount = visibleCount + 1
+                else
+                    button.Visible = false
+                end
+            end
+            
+            -- Update scrolling frame canvas size
+            scrollFrame.CanvasSize = UDim2.new(0, 0, 0, math.max(visibleCount * 40 + 40, 40))
+        end
+    end)
+    
+    -- Add search bar to dropdown menu
+    searchBar.Parent = scrollFrame
+    
+    -- Adjust positions for options to make room for the search bar
+    for i, button in ipairs(optionButtons) do
+        button.Position = UDim2.new(0, 5, 0, (i-1) * 40 + 40)
+    end
+    
+    -- Update canvas size to include search bar
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #labels * 40 + 40)
+    
+    return {
+        container = dropdownContainer,
+        mainButton = mainButton,
+        optionButtons = optionButtons,
+        getCurrentLabel = function() return mainButton.Text end,
+        getCurrentValue = function() return dropdownContainer:GetAttribute("SelectedValue") end,
+        setSelection = function(valueToSet)
+            -- Find the option with the matching value and select it
+            for _, button in ipairs(optionButtons) do
+                if button:GetAttribute("RealValue") == valueToSet then
+                    mainButton.Text = button.Text
+                    dropdownContainer:SetAttribute("SelectedValue", valueToSet)
+                    return true
+                end
+            end
+            return false -- Value not found
+        end
+    }
+end
+
 -- Function to create a search box with dropdown results
 local function createSearchBox(parent, position, labels, options)
     local container = Instance.new("Frame")
@@ -465,7 +709,7 @@ local function teleportCameraAndCreatePlatform()
     }
     
     local boxLabels = {
-        "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum2(NORMAL)", 
+        "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum(NORMAL)", 
         "BoxCompensation1", "BoxEggMysterious", "BoxEquipment(LEVEL 5)", "BoxEquipment(MATERIAL LEVEL 25)", "BoxEvoluterData", "BoxEvoluterVaccine", 
         "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial(SILVER RIVER)", "BoxMaterial(GEAR SAVANNAH)", "BoxMaterial(INFINITE MOUNTAIN)", 
         "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxChristmas", "BoxWaruMonzaemon", 
@@ -477,7 +721,7 @@ local function teleportCameraAndCreatePlatform()
     local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabels, boxOptions)
     
     -- Create dropdown as a fallback/alternative selection method
-    local dropdown = createStylishDropdown(mainFrame, selectedType, boxOptions, UDim2.new(0.1, 0, 0.5, 0))    
+    local dropdown = createScrollableDropdown(mainFrame, "CHOOSE A BOX", boxLabels, boxValues, UDim2.new(0.1, 0, 0.5, 0))
     
     -- Create text input for quantity
     local inputBox = createStylishTextBox(mainFrame, "Quantity", UDim2.new(0.75, 0, 0.4, 0))
