@@ -1296,7 +1296,7 @@ function CreateErrorMessage(message)
 end
 
 -- Testar a função
-CreateErrorMessage("Erro ao carregar os dados!")
+CreateErrorMessage("Update: AUTO: Clone, Egg, Box's")
 
 
 -- Função para verificar se o Digimon possui a skill selecionada
