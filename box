@@ -73,7 +73,7 @@ local function createStylishButton(parent, text, position, size)
     return button
 end
 
--- Function to create a stylish dropdown
+-- Function to create a stylish dropdown with scrolling capability
 local function createStylishDropdown(parent, defaultOption, options, position)
     local dropdownContainer = Instance.new("Frame")
     dropdownContainer.Size = UDim2.new(0, 150, 0, 50)
@@ -94,14 +94,19 @@ local function createStylishDropdown(parent, defaultOption, options, position)
     arrow.TextSize = 14
     arrow.Parent = mainButton
     
-    -- Create the dropdown menu container
-    local dropdownMenu = Instance.new("Frame")
-    dropdownMenu.Size = UDim2.new(1, 0, 0, #options * 40)
+    -- Create the dropdown menu container as a ScrollingFrame instead of a regular Frame
+    local dropdownMenu = Instance.new("ScrollingFrame")
+    dropdownMenu.Size = UDim2.new(1, 0, 0, math.min(#options * 40, 200)) -- Max height of 200 pixels
     dropdownMenu.Position = UDim2.new(0, 0, 1, 5)
     dropdownMenu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     dropdownMenu.BorderSizePixel = 0
     dropdownMenu.Visible = false
     dropdownMenu.ZIndex = 10
+    dropdownMenu.CanvasSize = UDim2.new(0, 0, 0, #options * 40) -- Set canvas size based on number of options
+    dropdownMenu.ScrollBarThickness = 6 -- Width of scrollbar
+    dropdownMenu.ScrollingDirection = Enum.ScrollingDirection.Y -- Only allow vertical scrolling
+    dropdownMenu.AutomaticCanvasSize = Enum.AutomaticSize.None -- Manual canvas size
+    dropdownMenu.VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right -- Position scrollbar on right
     
     local menuCorner = Instance.new("UICorner")
     menuCorner.CornerRadius = UDim.new(0, 8)
@@ -113,8 +118,8 @@ local function createStylishDropdown(parent, defaultOption, options, position)
     local optionButtons = {}
     for i, option in ipairs(options) do
         local optionButton = Instance.new("TextButton")
-        optionButton.Size = UDim2.new(1, 0, 0, 40)
-        optionButton.Position = UDim2.new(0, 0, 0, (i-1) * 40)
+        optionButton.Size = UDim2.new(1, -10, 0, 40)
+        optionButton.Position = UDim2.new(0, 5, 0, (i-1) * 40)
         optionButton.Text = option
         optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         optionButton.Font = Enum.Font.GothamSemibold
@@ -145,6 +150,19 @@ local function createStylishDropdown(parent, defaultOption, options, position)
         table.insert(optionButtons, optionButton)
     end
     
+    -- Add scrollbar styling
+    local scrollBarBackground = Instance.new("Frame")
+    scrollBarBackground.Name = "ScrollBarBackground"
+    scrollBarBackground.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    scrollBarBackground.BorderSizePixel = 0
+    scrollBarBackground.Size = UDim2.new(0, 6, 1, 0)
+    scrollBarBackground.Position = UDim2.new(1, -6, 0, 0)
+    scrollBarBackground.Parent = dropdownMenu
+    
+    local scrollBarCorner = Instance.new("UICorner")
+    scrollBarCorner.CornerRadius = UDim.new(0, 3)
+    scrollBarCorner.Parent = scrollBarBackground
+    
     -- Toggle dropdown visibility
     local isOpen = false
     mainButton.MouseButton1Click:Connect(function()
@@ -172,6 +190,22 @@ local function createStylishDropdown(parent, defaultOption, options, position)
                 dropdownMenu.Visible = false
                 arrow.Text = "▼"
             end
+        end
+    end)
+    
+    -- Mouse wheel scrolling for dropdown
+    dropdownMenu.MouseWheelForward:Connect(function()
+        if isOpen then
+            local newPosition = math.max(dropdownMenu.CanvasPosition.Y - 40, 0)
+            dropdownMenu.CanvasPosition = Vector2.new(0, newPosition)
+        end
+    end)
+    
+    dropdownMenu.MouseWheelBackward:Connect(function()
+        if isOpen then
+            local maxScroll = dropdownMenu.CanvasSize.Y.Offset - dropdownMenu.AbsoluteSize.Y
+            local newPosition = math.min(dropdownMenu.CanvasPosition.Y + 40, maxScroll)
+            dropdownMenu.CanvasPosition = Vector2.new(0, newPosition)
         end
     end)
     
@@ -214,7 +248,6 @@ local function createStylishTextBox(parent, placeholderText, position)
     textBox.Parent = parent
     return textBox
 end
-
 
 -- Function to create a search box with dropdown results
 local function createSearchBox(parent, position, labels, options)
@@ -466,7 +499,7 @@ local function teleportCameraAndCreatePlatform()
     }
     
     local boxLabels = {
-        "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum(NORMAL)", 
+        "BoxArmageddemon", "BoxBM", "Box(Valentine)", "BoxColiseum(EASY)", "BoxColiseum2(NORMAL)", 
         "BoxCompensation1", "BoxEggMysterious", "BoxEquipment(LEVEL 5)", "BoxEquipment(MATERIAL LEVEL 25)", "BoxEvoluterData", "BoxEvoluterVaccine", 
         "BoxEvoluterVirus", "BoxKuwagamon", "BoxLeomon", "BoxMaterial(SILVER RIVER)", "BoxMaterial(GEAR SAVANNAH)", "BoxMaterial(INFINITE MOUNTAIN)", 
         "BoxMeramon", "BoxOgremon", "BoxSeadramon", "BoxUnimon", "BoxChristmas", "BoxWaruMonzaemon", 
@@ -475,7 +508,10 @@ local function teleportCameraAndCreatePlatform()
     }
 
     -- Create search box with proper parameters
-    local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.5, 0), boxLabels, boxOptions)
+    local searchBox = createSearchBox(mainFrame, UDim2.new(0.1, 0, 0.25, 0), boxLabels, boxOptions)
+    
+    -- Create dropdown as a fallback/alternative selection method
+    local dropdown = createStylishDropdown(mainFrame, selectedType, boxOptions, UDim2.new(0.1, 0, 0.5, 0))    
     
     -- Create text input for quantity
     local inputBox = createStylishTextBox(mainFrame, "Quantity", UDim2.new(0.75, 0, 0.4, 0))
