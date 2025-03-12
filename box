@@ -260,7 +260,7 @@ local function createSearchBox(parent, position, labels, options)
     -- Search label
     local searchLabel = Instance.new("TextLabel")
     searchLabel.Size = UDim2.new(0, 250, 0, 30)
-    searchLabel.Position = UDim2.new(0, 0, 0, -35)
+    searchLabel.Position = UDim2.new(0, 0, 0, -20)
     searchLabel.Text = "SEARCH"
     searchLabel.Font = Enum.Font.GothamBold
     searchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -520,7 +520,7 @@ local function teleportCameraAndCreatePlatform()
     local openButton = createStylishButton(mainFrame, "OPEN", UDim2.new(0.5, -75, 0.7, 0))
     
     -- Create RETURN button
-    local returnButton = createStylishButton(mainFrame, "RETURN", UDim2.new(0.5, -75, 0.9, 0))
+    local returnButton = createStylishButton(mainFrame, "RETURN", UDim2.new(0.5, -75, 0.99, 0))
     
     -- Text above the mesh showing the selection
     local selectedTypeLabel = Instance.new("BillboardGui")
@@ -696,7 +696,18 @@ local function teleportCameraAndCreatePlatform()
             returnEffect.BackgroundTransparency = i
             wait(0.02)
         end
-        loadstring(game:HttpGet("https://pastebin.com/raw/sGmQwbKS"))()
+        -- Verifique se no CoreGui existe um ScreenGui chamado de "InfinityHub"
+        local coreGui = game:GetService("CoreGui")
+        local infinityHubScreenGui = coreGui:FindFirstChild("InfinityHub")
+        
+        if infinityHubScreenGui then
+            -- Se existir, acesse o ScreenGui e torne o seu Frame visível
+            local infinityHubFrame = infinityHubScreenGui:FindFirstChildOfClass("Frame")
+            if infinityHubFrame then
+                infinityHubFrame.Visible = true
+		infinityHubScreenGui.TextButton.Visible = true
+            end
+        end
         -- Now clean up everything
         cleanupEverything()
     end)
