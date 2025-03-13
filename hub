@@ -906,7 +906,7 @@ local runButtonConfig = createStyledButton("RUN CONFIG", Color3.fromRGB(217, 70,
 local stopButtonConfig = createStyledButton("STOP CONFIG", Color3.fromRGB(168, 85, 247), 0.525, 1, pageConfig) -- Botão Roxo
 
 
--- Page 4: Teleport
+-- Página 4: Teleporte
 local teleportLabel = Instance.new("TextLabel")
 teleportLabel.Text = "TRAVEL"
 teleportLabel.Size = UDim2.new(1, 0, 0, 25)
@@ -917,17 +917,17 @@ teleportLabel.Font = Enum.Font.GothamSemibold
 teleportLabel.BackgroundTransparency = 1
 teleportLabel.Parent = pageTeleport
 
--- Dropdown for teleport locations
+-- Dropdown para locais de teleporte
 local teleportOptions = {"Gear Savannah", "Infinity Mountain"}
 local teleportValues = {"92975923292118", "138083468820287"}
-local teleportDropdown, teleportMenu = createDropdown(pageTeleport, teleportValues, teleportOptions, "11", "CHOOSE MAP TO TELEPORT", 40)
+local teleportDropdown, teleportMenu = createDropdown(pageTeleport, teleportValues, teleportOptions, "92975923292118", "CHOOSE MAP TO TELEPORT", 40)
 
--- Button for teleporting
+-- Botão para teletransportar
 local teleportButton = Instance.new("TextButton")
 teleportButton.Text = "TELEPORT"
 teleportButton.Size = UDim2.new(0.9, 0, 0, 40)
 teleportButton.Position = UDim2.new(0.05, 0, 0.4, 0)
-teleportButton.BackgroundColor3 = Color3.fromRGB(217, 70, 239) -- Pink for teleport button
+teleportButton.BackgroundColor3 = Color3.fromRGB(217, 70, 239) -- Rosa para o botão de teleporte
 teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 teleportButton.TextSize = 14
 teleportButton.Font = Enum.Font.GothamBold
@@ -936,13 +936,13 @@ teleportButton.Parent = pageTeleport
 local teleportButtonCorner = Instance.new("UICorner", teleportButton)
 teleportButtonCorner.CornerRadius = UDim.new(0, 8)
 
--- Hover effect for teleport button
+-- Efeito de hover para o botão de teleporte
 teleportButton.MouseEnter:Connect(function()
-    TweenService:Create(teleportButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(232, 121, 249)}):Play() -- Lighter pink on hover
+    TweenService:Create(teleportButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(232, 121, 249)}):Play() -- Rosa mais claro no hover
 end)
 
 teleportButton.MouseLeave:Connect(function()
-    TweenService:Create(teleportButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Back to pink
+    TweenService:Create(teleportButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(217, 70, 239)}):Play() -- Volta ao rosa original
 end)
 
 -- Tab navigation system
@@ -1019,11 +1019,6 @@ end)
 
 tabTeleport.MouseButton1Click:Connect(function()
     switchTab(4)
-end)
-
--- Close button functionality
-closeButton.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
 end)
 
 -- GUI drag system
@@ -2048,23 +2043,25 @@ stopButtonConfig.MouseButton1Click:Connect(stopFiringConfig)
 -- FUNCIONALIDADE: SISTEMA DE TELEPORTE E TROCA (PÁGINA 4) --
 -----------------------------------------------------
 
--- Botão de teleporte
+-- Handler de clique do botão de teleporte
 teleportButton.MouseButton1Click:Connect(function()
     if debounceTeleport then return end
     debounceTeleport = true
-
-    -- Pegando a opção selecionada
-    local selectedIndex = table.find(teleportOptions, teleportDropdown.Name)
     
-    if selectedIndex then
-        local teleportId = teleportValues[selectedIndex] -- Obtém o ID correto
-        print("Teleportando para: " .. teleportOptions[selectedIndex] .. " (ID: " .. teleportId .. ")")
-
+    -- Obter o valor selecionado do dropdown
+    local selectedTeleportValue = teleportDropdown.Text -- Pega o valor atual selecionado do dropdown
+    
+    if selectedTeleportValue then
+        -- Encontrar o índice correspondente ao valor selecionado
+        local teleportId = teleportValues[table.find(teleportOptions, selectedTeleportValue)]
+        
+        print("Teleportando para: " .. selectedTeleportValue .. " (ID: " .. teleportId .. ")")
+        
         -- Tentando teleportar
         local success, err = pcall(function()
-            TeleportService:Teleport(tonumber(teleportId), player) -- Teleporta o jogador
+            TeleportService:Teleport(tonumber(teleportId), player)
         end)
-
+        
         -- Feedback visual
         if success then
             TweenService:Create(teleportButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(16, 185, 129)}):Play() -- Verde
@@ -2078,9 +2075,18 @@ teleportButton.MouseButton1Click:Connect(function()
     else
         warn("Nenhuma opção de teleporte selecionada!")
     end
-
+    
     wait(1) -- Tempo de debounce
     debounceTeleport = false
+end)
+
+-- Close button functionality
+closeButton.MouseButton1Click:Connect(function()
+	-- Control variables
+	screenGui:Destroy()
+	stopFiringConfig()
+	stopFiringBoss()
+	stopFiringSkill()
 end)
 
 -- Initialize to the first tab
