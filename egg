@@ -230,7 +230,7 @@ local function createSearchBox(parent, position, options)
     local searchLabel = Instance.new("TextLabel")
     searchLabel.Size = UDim2.new(0, 250, 0, 30)
     searchLabel.Position = UDim2.new(0, 0, 0, -35)
-    searchLabel.Text = "SEARCH"
+    searchLabel.Text = "TARGET DIGIMON"
     searchLabel.Font = Enum.Font.GothamBold
     searchLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     searchLabel.TextSize = 18
